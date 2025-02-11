@@ -3,10 +3,10 @@
 
 **CRISP** computes entirely new contact sequences from naive and even all-zero initializations.
 <p align="center">
-  <img src="files/pushbot.gif" width = "400" height = "200"/>
+  <img src="files/waiterhopper.gif" width = "400" height = "200"/>
   <img src="files/pushbox.gif" width = "400" height = "200"/>
   <img src="files/transport.gif" width = "400" height = "200"/>
-  <img src="files/waiterhopper.gif" width = "400" height = "200"/>
+  <img src="files/pushbot.gif" width = "400" height = "200"/>
 </p>
 
 ## Features
