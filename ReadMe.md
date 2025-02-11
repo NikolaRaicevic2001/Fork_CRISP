@@ -10,10 +10,10 @@
 
 - All the sparse matrix and vector operations within the library are optimized and accelerated by directly memory copying under Eigen Compressed Row Storage (CRS) scheme. The large-scale sparse convex Quadratic Programming (QP) subproblems that arise are tackled using the Proximal Interior Point Quadratic Programming Solver ([PIQP](https://github.com/PREDICT-EPFL/piqp)).   
 <p align="center">
-  <img src="files/pushbot.gif" width = "450" height = "250"/>
-  <img src="files/pushbox.gif" width = "450" height = "250"/>
-  <img src="files/transport.gif" width = "450" height = "250"/>
-  <img src="files/waiterhopper.gif" width = "450" height = "250"/>
+  <img src="files/pushbot.gif" width = "400" height = "225"/>
+  <img src="files/pushbox.gif" width = "400" height = "225"/>
+  <img src="files/transport.gif" width = "400" height = "225"/>
+  <img src="files/waiterhopper.gif" width = "400" height = "225"/>
 </p>
 
 ## Table of Contents
