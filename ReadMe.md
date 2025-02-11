@@ -1,7 +1,7 @@
-# ContactSolver
-**ContactSolver** is a C++ library designed to efficiently solve nonlinear optimization and optimal control problems with MPCC constraints, using a customized trust region Sequential Convex Programming (SCP) algorithm. The library leverages [CppAD](https://coin-or.github.io/CppAD/doc/cppad.htm) and its companion, [CppADCodeGen](https://joaoleal.github.io/CppADCodeGen/), to facilitate rapid and efficient computation of necessary values and derivatives. This approach automates the generation of autodiff libraries, requiring users only to define the objective and constraint value functions. These libraries are compiled during the initial run and reused in subsequent operations, optimizing computational efficiency.
+# CRISP
+**CRISP** is a C++ library designed to efficiently solve nonlinear optimization and optimal control problems with MPCC constraints, using a customized trust region Sequential Convex Programming (SCP) algorithm. The library leverages [CppAD](https://coin-or.github.io/CppAD/doc/cppad.htm) and its companion, [CppADCodeGen](https://joaoleal.github.io/CppADCodeGen/), to facilitate rapid and efficient computation of necessary values and derivatives. This approach automates the generation of autodiff libraries, requiring users only to define the objective and constraint value functions. These libraries are compiled during the initial run and reused in subsequent operations, optimizing computational efficiency.
 
-ContactSolver accommodates both parametric and nonparametric value functions. The parametric support allows users to adjust parameters dynamically and resolve problems without the need for regenerating the autodiff libraries—ideal for applications like Model Predictive Control (MPC), where the tracking reference in the objective function might change frequently.
+**CRISP** accommodates both parametric and nonparametric value functions. The parametric support allows users to adjust parameters dynamically and resolve problems without the need for regenerating the autodiff libraries—ideal for applications like Model Predictive Control (MPC), where the tracking reference in the objective function might change frequently.
 
 Additionally, a Python interface is available through pybind11, enabling dynamic parameter adjustments and solver execution within a Python environment.
 
@@ -12,7 +12,7 @@ Download the source code from the repository:
     git clone https://github.com/ComputationalRobotics/CRISP-CODE.git
 ```
 ### Prerequisites
-- This library is developed and tested on Ubuntu 20.04.
+- This library is developed and tested on Ubuntu 20.04/22,04.
 - Install Common Library through `sudo apt install`
     - CMake
     - Eigen3
@@ -79,10 +79,20 @@ mkdir build
 cmake ..
 make
 ```
-
 **Note**: CppAD library generate a .pc complier file, which is used to find the path of the library. It can not be found by findpackage, but can be dealt with properly by pkgconfig. 
 
 You do not need to care about CppAD codegen, since it is a header-only library and has already been installed to the system default path.
+
+### Run Examples
+```sh
+# in the build directory, run the following examples: 
+./examples/pushbot_example
+./examples/pushbox_example
+./examples/cartTransp_example
+./examples/waiter_example
+./examples/hopper_example
+```
+
 
 
 ## Usage
@@ -203,20 +213,7 @@ or simply delete the files such that the system will not find the library and re
     solver.solve();
     solver.getSolution();
 ```
-**Optional:**
 
-We provide MatlabHelper for reading the initial guess or other data from .mat, but you can always set the parameters in your own way without relying on Matlab.
-```cpp
-    std::string matFileName = "/home/workspace/src/examples/pushbot/experiments/initial_guess_01" + ".mat"; // path to whatever .mat file you have
-    const char* variableName = "z_record"; // name of whatever variables in your .mat file
-    vector_t xInitialGuess(variableNum);
-    MatlabHelper::readVariableFromMatFile(matFileName.c_str(), variableName, xInitialGuess);
-```
-Besides, upon the problem is solved, all the history (trajectory histories, constraint violations, objective, merit functions,...) are automatically stored in a .mat file for visualization and analysis. 
-You can change where your experiments data are exported by changing ``folderPrefix`` in ``SolverInterface.saveResults()``. For me, it is
-```cpp
-    std::string folderPrefix = "/home/workspace/src/examples/pushbot/experiments/results";
-```
 
 ## Python Interface
 Make sure you have gone through the C++ workflow and have the autodiff libraries generated.
@@ -287,9 +284,9 @@ problem.add_equality_constraint(initial)
 # 4. Set problem parameters, as the functions can be defined in both parametric and non-parametric ways, the problem parameters can also be adjusted dynamically after creating the solver object.
 x_initial_states = np.zeros(num_state)
 x_final_states = np.array([0, 0, 0, 0])
-x_initial_guess = np.ones(variableNum)
+
 # Read initial guess from a file, you can also set it to your own test values.
-x_initial_guess = pyContactSolver.MatlabHelper.read_variable_from_mat_file_py("/home/workspace/src/examples/pushbot/experiments/initial_guess_01.mat", "z_record")
+x_initial_guess = np.loadtxt('/home/workspace/src/examples/pushbot/initial_guess_pushbot_example.txt')
 x_initial_states[:] = x_initial_guess[:num_state]
 
 
@@ -298,23 +295,24 @@ params = pyContactSolver.SolverParameters()
 solver = pyContactSolver.SolverInterface(problem, params)
 
 # set the parameters for those parametric functions: mandatory
-problem.set_problem_parameters("pushbotObjective", x_final_states) # the objective parameters are the terminal states for calculating the terminal cost
-problem.set_problem_parameters("pushBotInitialConstraints", x_initial_states)
+solver.set_problem_parameters("pushbotObjective", x_final_states) # the objective parameters are the terminal states for calculating the terminal cost
+solver.set_problem_parameters("pushBotInitialConstraints", x_initial_states)
 # set the hyperparameters for the solver: optional
-params.set_hyper_parameters("verbose", np.zeros(1))
+# params.set_hyper_parameters("verbose", np.zeros(1))
 solver.initialize(x_initial_guess)
 solver.solve()
 
 # 7. Get the solution. Note that the solution and all intermediate results are automatically saved to path/to/build/results folder in .mat format for further analysis and visualization in matlab.
 solution = solver.get_solution()
-```
-Similar for dynamically adjust parameters:
-```python
-solver.set_hyper_parameters("max_iter", np.array([500]))
-solver.set_problem_parameters("pushbotObjective", np.array([0.5, 0, 0, 0]))
-x_initial_new = 0.1 * np.random.rand(variableNum)
-solver.reset(x_initial_new)
-solver.solve()
-solution = solver.get_solution()
+
+# 8. Optional: 
+# Dynamically change the problem parameters and solver hyperparameters and solve the problem again.
+# solver.set_hyper_parameters("max_iter", np.array([500]))
+# solver.set_problem_parameters("pushbotObjective", np.array([0.5, 0, 0, 0]))
+# x_initial_new = 0.1 * np.random.rand(variableNum)
+# solver.reset(x_initial_new)
+# solver.solve()
+# solution = solver.get_solution()
+
 ```
 
