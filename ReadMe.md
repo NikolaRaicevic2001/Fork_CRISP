@@ -1,4 +1,6 @@
 # CRISP
+This is the official code repository of [**CRISP**](https://computationalrobotics.seas.harvard.edu/CRISP/).
+
 **CRISP** is a C++ library designed to efficiently solve nonlinear optimization and optimal control problems with MPCC constraints, using a customized trust region Sequential Convex Programming (SCP) algorithm. The library leverages [CppAD](https://coin-or.github.io/CppAD/doc/cppad.htm) and its companion, [CppADCodeGen](https://joaoleal.github.io/CppADCodeGen/), to facilitate rapid and efficient computation of necessary values and derivatives. This approach automates the generation of autodiff libraries, requiring users only to define the objective and constraint value functions. These libraries are compiled during the initial run and reused in subsequent operations, optimizing computational efficiency.
 
 **CRISP** accommodates both parametric and nonparametric value functions. The parametric support allows users to adjust parameters dynamically and resolve problems without the need for regenerating the autodiff libraries—ideal for applications like Model Predictive Control (MPC), where the tracking reference in the objective function might change frequently.
