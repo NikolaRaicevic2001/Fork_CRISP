@@ -1,9 +1,9 @@
 #include "solver_core/SolverInterface.h"
-#include "common/MatlabHelper.h"
+// #include "common/MatlabHelper.h"
 #include <chrono>
 #include "math.h"
 
-using namespace ContactSolver;
+using namespace CRISP;
 
 // Define model model parameters for cart transpotation
 const scalar_t m1 = 2.0;
@@ -221,18 +221,11 @@ int main()
     vector_t xInitialStates(num_state);
     vector_t xFinalStates(num_state);
     vector_t xInitialGuess(variableNum);
+    vector_t xOptimal(variableNum);
     xInitialGuess.setZero();
     // define the initial states
     xInitialStates << -6.0, 0.1, 0.0, 0.0, 0, 0, 0, 0;
-    // // set random initial guess beteween -0.01 and 0.01
-    // vector_t lambdaN_initial(N);
-    // lambdaN_initial.setConstant(10.0);
-    // xInitialGuess.segment(0, 8) = xInitialStates;
-    // for (size_t i = 0; i < N; ++i) {
-    //     size_t idx = i * (num_state + num_control);
-    //     xInitialGuess[idx + 8] = lambdaN_initial[i];
-    // }
-    // xInitialGuess.segment(0, 8) = xInitialStates;
+    // define the final states, pull the COM of the plate to the edge of the table, with terminal velocity 2.0m/s 
     xFinalStates << pusherSize, pusherSize, 2.0, 2.0, 0, 0, 0, 0;
 
     SolverParameters params;
@@ -240,16 +233,15 @@ int main()
     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
     // solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-3));
     // solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-4));
-    solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-3));
-    // solver.setHyperParameters("muMax", vector_t::Constant(1, 1e8));
+    solver.setHyperParameters("WeightedTolFactor", vector_t::Constant(1, 1));
     solver.setHyperParameters("verbose", vector_t::Constant(1, 1));
     solver.setProblemParameters("WaiterInitialConstraints", xInitialStates);
     solver.setProblemParameters("WaiterObjective", xFinalStates);
 
+
     solver.initialize(xInitialGuess);
     solver.solve();
-    solver.getSolution();
-    solver.saveResults("/home/workspace/src/examples/server/experiments/results_exp");
+    xOptimal = solver.getSolution();
 }    
 
 

@@ -5,7 +5,7 @@ project(SolverDevelopment)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 # MATLAB root directory
-set(MATLAB_ROOT "/usr/local/MATLAB/R2024a") # Replace with your MATLAB installation path
+# set(MATLAB_ROOT "/usr/local/MATLAB/R2024a") # Replace with your MATLAB installation path
 # Add PKG_CONFIG_PATH
 set(ENV{PKG_CONFIG_PATH} "/usr/local/share/pkgconfig:$ENV{PKG_CONFIG_PATH}")
 
@@ -34,8 +34,8 @@ message(STATUS "YAML-CPP include dir: ${YAML_CPP_INCLUDE_DIR}")
 
 
 # Include MATLAB headers
-include_directories(${MATLAB_ROOT}/extern/include)
-link_directories(${MATLAB_ROOT}/bin/glnxa64)
+# include_directories(${MATLAB_ROOT}/extern/include)
+# link_directories(${MATLAB_ROOT}/bin/glnxa64)
 # Add subdirectories
 add_subdirectory(core)
 add_subdirectory(examples)

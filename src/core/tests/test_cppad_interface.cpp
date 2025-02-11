@@ -1,7 +1,7 @@
 #include "cppad_core/CppAdInterface.h"
 #include <iostream>
 
-using namespace ContactSolver;
+using namespace CRISP;
 void testCppAdInterface() {
     size_t variableDim = 3;
     size_t parameterDim = 2;

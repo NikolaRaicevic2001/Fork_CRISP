@@ -42,9 +42,9 @@ problem.add_equality_constraint(initial)
 # 4. Set problem parameters, as the functions can be defined in both parametric and non-parametric ways, the problem parameters can also be adjusted dynamically after creating the solver object.
 x_initial_states = np.zeros(num_state)
 x_final_states = np.array([0, 0, 0, 0])
-x_initial_guess = np.ones(variableNum)
+
 # Read initial guess from a file, you can also set it to your own test values.
-x_initial_guess = pyContactSolver.MatlabHelper.read_variable_from_mat_file_py("/home/workspace/src/examples/pushbot/experiments/initial_guess_01.mat", "z_record")
+x_initial_guess = np.loadtxt('/home/workspace/src/examples/pushbot/initial_guess_pushbot_example.txt')
 x_initial_states[:] = x_initial_guess[:num_state]
 
 
@@ -53,10 +53,10 @@ params = pyContactSolver.SolverParameters()
 solver = pyContactSolver.SolverInterface(problem, params)
 
 # set the parameters for those parametric functions: mandatory
-problem.set_problem_parameters("pushbotObjective", x_final_states) # the objective parameters are the terminal states for calculating the terminal cost
-problem.set_problem_parameters("pushBotInitialConstraints", x_initial_states)
+solver.set_problem_parameters("pushbotObjective", x_final_states) # the objective parameters are the terminal states for calculating the terminal cost
+solver.set_problem_parameters("pushBotInitialConstraints", x_initial_states)
 # set the hyperparameters for the solver: optional
-params.set_hyper_parameters("verbose", np.zeros(1))
+# params.set_hyper_parameters("verbose", np.zeros(1))
 solver.initialize(x_initial_guess)
 solver.solve()
 

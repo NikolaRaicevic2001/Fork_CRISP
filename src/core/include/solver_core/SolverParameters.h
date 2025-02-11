@@ -5,7 +5,7 @@
 #include "common/ParametersManager.h"
 #include <yaml-cpp/yaml.h>
 
-namespace ContactSolver {
+namespace CRISP {
 class SolverParameters : public ParametersManager {
 public:
     // load default
@@ -32,7 +32,8 @@ private:
         setParameters("constraintTol", vector_t::Constant(1, 1e-6)); // tolerance for the max constraints violation
         setParameters("verbose", vector_t::Constant(1, 0)); // verbose level
         setParameters("WeightedMode", vector_t::Constant(1, 0)); // 0: no weighted, 1: weighted
-        setParameters("WeightedTolFactor", vector_t::Constant(1, 1.0)); // factor for the weighted mode
+        setParameters("WeightedTolFactor", vector_t::Constant(1, 10.0)); // factor for the weighted mode
+        setParameters("secondOrderCorrection", vector_t::Constant(1, 1)); // 0: no second order correction, 1: second order correction
         // ------------------parameters for inner iterations ------------------ //
         // to be added for inner convex QP solver.
     }
@@ -59,6 +60,6 @@ private:
         }
     }
 };
-} // namespace ContactSolver
+} // namespace CRISP
 
 #endif // SOLVER_PARAMETER_H

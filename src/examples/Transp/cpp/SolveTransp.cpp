@@ -1,9 +1,9 @@
 #include "solver_core/SolverInterface.h"
-#include "common/MatlabHelper.h"
+// #include "common/MatlabHelper.h"
 #include <chrono>
 #include "math.h"
 
-using namespace ContactSolver;
+using namespace CRISP;
 
 // Define model model parameters for cart transpotation
 const scalar_t m1 = 1.0;
@@ -175,102 +175,21 @@ int main()
     // solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
     // solver.setHyperParameters("mu", vector_t::Constant(1, 1));
     // solver.setHyperParameters("verbose", vector_t::Constant(1, 1));
-    solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-4));
-    solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-4));
-    // solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-3)); 
     // solver.setHyperParameters("muMax", vector_t::Constant(1, 1e8));
 
     vector_t xInitialGuess(variableNum);
+    vector_t xOptimal(variableNum);
+    // zero initial guess
     xInitialGuess.setZero();
-    vector_t xInitialStates(num_state);
-    vector_t xFinalStates(num_state);
-    // // different initial state and final state for the cart transportation problem
-    std::vector<vector_t> xInitialStatesList;
-    std::vector<vector_t> xFinalStatesList;
     scalar_t x2_initial = 3.0;  
     scalar_t x2_final = 0.0; 
-    std::vector<scalar_t> x1_initials = {x2_initial, x2_initial - 0.5, x2_initial + 0.5};  
-    std::vector<scalar_t> x1_finals = {x2_final, x2_final - 0.5, x2_final + 0.5}; 
-    std::vector<scalar_t> velocities = {0.0, -2.0}; 
-    for (scalar_t x1_init : x1_initials) {
-        for (scalar_t x1_final : x1_finals) {
-                vector_t xInitial(num_state); 
-                xInitial<< x1_init, x2_initial, velocities[0], velocities[0], 0.0, 0.0;
-                xInitialStatesList.push_back(xInitial);
-                xInitial(2) = 2*velocities[1];
-                xInitial(3) = 2*velocities[1];
-                xInitialStatesList.push_back(xInitial);
-
-                vector_t xFinal(num_state); 
-                xFinal << x1_final, x2_final, velocities[0], velocities[0], 0.0, 0.0;
-                xFinalStatesList.push_back(xFinal);
-                xFinal(2) = velocities[1];
-                xFinal(3) = velocities[1];
-                xFinalStatesList.push_back(xFinal);
-        }
-    }
-    // std::vector<scalar_t> x1_initials = {x2_initial, x2_initial - 0.5, x2_initial + 0.5};  
-    // std::vector<scalar_t> x1_finals = {x2_final, x2_final - 0.5, x2_final + 0.5}; 
-    // std::vector<scalar_t> velocities = {0.0, -3.0}; 
-    // for (scalar_t x1_init : x1_initials) {
-    //     for (scalar_t x1_final : x1_finals) {
-    //             vector_t xInitial(num_state); 
-    //             xInitial<< x1_init, x2_initial, velocities[0], velocities[0], 0.0, 0.0;
-    //             xInitialStatesList.push_back(xInitial);
-    //             xInitial(2) = velocities[1];
-    //             xInitial(3) = velocities[1];
-    //             xInitialStatesList.push_back(xInitial);
-
-    //             vector_t xFinal(num_state);             
-    //             xFinal << x1_final, x2_final, velocities[0], velocities[0], 0.0, 0.0;
-    //             xFinalStatesList.push_back(xFinal);
-    //             // xFinal(2) = velocities[1];
-    //             // xFinal(3) = velocities[1];
-    //             xFinalStatesList.push_back(xFinal);
-    //     }
-    // }
-    for (vector_t xInitialStates : xInitialStatesList) {
-        std::cout << "Initial state: " << xInitialStates.transpose() << std::endl;
-    }
-    for (vector_t xFinalStates : xFinalStatesList) {
-        std::cout << "Final state: " << xFinalStates.transpose() << std::endl;
-    }
-    for (size_t i = 0; i < xInitialStatesList.size(); ++i) {
-        // xInitialGuess.segment(i * (num_state + num_control), num_state) = xInitialStatesList[i];
-        solver.setProblemParameters("cartTranspInitialConstraints", xInitialStatesList[i]);
-        solver.setProblemParameters("cartTranspObjective", xFinalStatesList[i]);
-        xInitialGuess.segment(0, num_state) = xInitialStatesList[i];
-        // pause 1s for each experiment
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        if (i == 0) {
-            solver.initialize(xInitialGuess);
-        }
-        else {
-            solver.resetProblem(xInitialGuess);
-        }
-        solver.solve();
-        solver.getSolution();
-        solver.saveResults("/home/workspace/src/examples/cartTransp/experiments/results_exp_rss");
-        std::cout << "Finish solving the problem with final state: " << xFinalStatesList[i].transpose() << std::endl;
-
-    }
-
-
-
-
-
-    // xInitialStates << 5.5, 5.0, -8.0, -8.0, 0, 0;
-    // // vector_t xFinalStates(num_state);
-    // xFinalStates <<-0.5, 0.0, -4.0, -4.0, 0, 0;
-    
-    // xInitialGuess.segment(0, num_state) = xInitialStates;
-
-    // solver.setProblemParameters("cartTranspInitialConstraints", xInitialStates);
-    // solver.setProblemParameters("cartTranspObjective", xFinalStates);
-
-    // solver.initialize(xInitialGuess);
-    // solver.solve();
-    // solver.getSolution();
-    // solver.saveResults("/home/workspace/src/examples/cartTransp/experiments/results_exp");
-
+    vector_t xInitial(num_state); 
+    xInitial<< x2_initial + 0.5, x2_initial, -4.0, -4.0, 0.0, 0.0; // initial state: cargo pose, cart pose, cargo vel, cart vel
+    vector_t xFinal(num_state); 
+    xFinal << x2_final - 0.5, x2_final, -2.0, -2.0, 0.0, 0.0;
+    solver.setProblemParameters("cartTranspInitialConstraints", xInitial);
+    solver.setProblemParameters("cartTranspObjective", xFinal);
+    solver.initialize(xInitialGuess);
+    solver.solve();
+    xOptimal = solver.getSolution();
 }

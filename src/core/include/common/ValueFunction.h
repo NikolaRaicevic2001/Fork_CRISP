@@ -3,7 +3,7 @@
 
 #include "cppad_core/CppAdInterface.h"
 
-namespace ContactSolver {
+namespace CRISP {
 
 
 class ValueFunction {
@@ -46,6 +46,6 @@ protected:
     std::function<vector_t(const vector_t&, const vector_t&)> valueFunctionWithParam_;
     std::function<sparse_matrix_t(const vector_t&, const vector_t&)> gradientFunctionWithParam_;
 };
-} // namespace ContactSolver
+} // namespace CRISP
 
 #endif // VALUE_FUNCTION_H

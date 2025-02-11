@@ -1,9 +1,9 @@
 #include "solver_core/SolverInterface.h"
-#include "common/MatlabHelper.h"
+// #include "common/MatlabHelper.h"
 #include <chrono>
 #include "math.h"
 
-using namespace ContactSolver;
+using namespace CRISP;
 
 // Define model model parameters for pushbox
 const scalar_t a = 0.5;
@@ -183,50 +183,25 @@ int main(){
     vector_t xInitialStates(num_state);
     vector_t xFinalStates(num_state);
     vector_t xInitialGuess(variableNum);
+    vector_t xOptimal(variableNum);
     // define a theta from 0 to 2pi, and define different final state for the problem with equal interval, for example 20 degree
     xInitialStates << 0, 0, 0;
-    // set random initial guess beteween -0.01 and 0.01
+    // set zero initial guess
     xInitialGuess.setZero();
-    // xInitialGuess = 0.001 * xInitialGuess;
-    // xInitialGuess.setZero();
     SolverParameters params;
     SolverInterface solver(pushboxProblem, params);
-    solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
+    // solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
     solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-3));
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-3));
+    solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
     size_t num_segments = 18;
-    for (size_t i = 0; i < num_segments; i++){
-        scalar_t theta = i * 2 * M_PI / num_segments;
+        scalar_t theta = 12 * 2 * M_PI / num_segments;
         xFinalStates << 3*cos(theta), 3*sin(theta), theta;
-        std::string resultFolderPrefix = "/home/workspace/src/examples/pushbox/experiments/results_exp_final";
         solver.setProblemParameters("pushboxObjective", xFinalStates);
-        if (i == 0){
-            solver.initialize(xInitialGuess);
-        } else {
-            solver.resetProblem(xInitialGuess);
-        }
+        solver.initialize(xInitialGuess);
         solver.solve();
-        solver.getSolution();
-        // solver.saveResults(resultFolderPrefix);
-        std::cout << "Finish solving the problem with final state: " << xFinalStates.transpose() << std::endl;
+        xOptimal = solver.getSolution();
     }
 
-}
-//     xFinalStates << 3, 3, 3.14/2;
-//     SolverParameters params;
-//     SolverInterface solver(pushboxProblem, params);
-//     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
-//     // solver.setHyperParameters("verbose", vector_t::Constant(1, 1));
-//     std::string resultFolderPrefix = "/home/workspace/src/examples/pushbox/experiments/results_test";
-//     xInitialStates << 0,0,0;
-//     // interpolate between the initial and final states for initial guess of the states, all control be zero.
-//     xInitialGuess.setZero();
-//     solver.setProblemParameters("pushboxObjective", xFinalStates);
-//     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
-//     solver.initialize(xInitialGuess);
-//     solver.solve();
-//     solver.getSolution();
-//     solver.saveResults(resultFolderPrefix);
-//     return 0;
-// }
+

@@ -4,7 +4,7 @@
 #include "common/ValueFunction.h"
 
 // Only first order information is needed for constraints
-namespace ContactSolver {
+namespace CRISP {
     class ConstraintFunction : public ValueFunction {
     public:
         enum class SpecifiedFunctionLevel {
@@ -33,10 +33,10 @@ namespace ContactSolver {
             funDim_ = cppadInterface_->getFunDim();
         }
 
-        //  accept eigen vector function to ease the python binding
+        //  for pybind
         ConstraintFunction(size_t variableDim, const std::string& modelName, const std::string& folderName,
-                           const std::string& functionName,
-                           CppAdInterface::ModelInfoLevel infoLevel = CppAdInterface::ModelInfoLevel::FIRST_ORDER, SpecifiedFunctionLevel specifiedFunctionLevel = SpecifiedFunctionLevel::NONE, bool regenerateLibrary = false):
+                           const std::string& functionName, bool regenerateLibrary = false,
+                           CppAdInterface::ModelInfoLevel infoLevel = CppAdInterface::ModelInfoLevel::FIRST_ORDER, SpecifiedFunctionLevel specifiedFunctionLevel = SpecifiedFunctionLevel::NONE):
                            specifiedFunctionLevel_(specifiedFunctionLevel), functionName_(functionName), isParameterized_(false){
 
             cppadInterface_ = std::make_unique<CppAdInterface>(variableDim, modelName, folderName, functionName, infoLevel, regenerateLibrary);
@@ -46,8 +46,8 @@ namespace ContactSolver {
         }
 
         ConstraintFunction(size_t variableDim, size_t parameterDim, const std::string& modelName, const std::string& folderName,
-                           const std::string& functionName,
-                           CppAdInterface::ModelInfoLevel infoLevel = CppAdInterface::ModelInfoLevel::FIRST_ORDER, SpecifiedFunctionLevel specifiedFunctionLevel = SpecifiedFunctionLevel::NONE, bool regenerateLibrary = false): 
+                           const std::string& functionName, bool regenerateLibrary = false,
+                           CppAdInterface::ModelInfoLevel infoLevel = CppAdInterface::ModelInfoLevel::FIRST_ORDER, SpecifiedFunctionLevel specifiedFunctionLevel = SpecifiedFunctionLevel::NONE): 
                            specifiedFunctionLevel_(specifiedFunctionLevel), functionName_(functionName), isParameterized_(true){
             //   convert the eigen vector function to ad function
             cppadInterface_ = std::make_unique<CppAdInterface>(variableDim, parameterDim, modelName, folderName, functionName, infoLevel, regenerateLibrary);
@@ -188,7 +188,7 @@ private:
 
 };
 
-} // namespace ContactSolver
+} // namespace CRISP
 
 # endif // CONSTRAINT_FUNCTION_H
 

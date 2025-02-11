@@ -5,7 +5,7 @@
 #include <string>
 #include <memory>
 
-namespace ContactSolver {
+namespace CRISP {
 
 
 class CppAdInterface {

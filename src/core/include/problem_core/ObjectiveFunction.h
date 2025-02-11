@@ -3,7 +3,7 @@
 
 #include "common/ValueFunction.h"
 
-namespace ContactSolver {
+namespace CRISP {
 
 class ObjectiveFunction : public ValueFunction {
 public:
@@ -39,8 +39,8 @@ public:
      }
     //  for pybind
     ObjectiveFunction(size_t variableDim, const std::string& modelName, const std::string& folderName,
-                          const std::string& functionName, 
-                          CppAdInterface::ModelInfoLevel infoLevel = CppAdInterface::ModelInfoLevel::SECOND_ORDER, SpecifiedFunctionLevel specifiedFunctionLevel = SpecifiedFunctionLevel::NONE, bool regenerateLibrary = false):
+                          const std::string& functionName, bool regenerateLibrary = false,
+                          CppAdInterface::ModelInfoLevel infoLevel = CppAdInterface::ModelInfoLevel::SECOND_ORDER, SpecifiedFunctionLevel specifiedFunctionLevel = SpecifiedFunctionLevel::NONE):
                           specifiedFunctionLevel_(specifiedFunctionLevel), functionName_(functionName){
           cppadInterface_ = std::make_unique<CppAdInterface>(variableDim, modelName, folderName, functionName, infoLevel, regenerateLibrary);
           variableDim_ = variableDim;
@@ -51,8 +51,8 @@ public:
      }
 
     ObjectiveFunction(size_t variableDim, size_t parameterDim, const std::string& modelName, const std::string& folderName,
-                          const std::string& functionName,
-                          CppAdInterface::ModelInfoLevel infoLevel = CppAdInterface::ModelInfoLevel::SECOND_ORDER, SpecifiedFunctionLevel specifiedFunctionLevel = SpecifiedFunctionLevel::NONE, bool regenerateLibrary = false): 
+                          const std::string& functionName, bool regenerateLibrary = false,
+                          CppAdInterface::ModelInfoLevel infoLevel = CppAdInterface::ModelInfoLevel::SECOND_ORDER, SpecifiedFunctionLevel specifiedFunctionLevel = SpecifiedFunctionLevel::NONE): 
                           specifiedFunctionLevel_(specifiedFunctionLevel), functionName_(functionName){
           cppadInterface_ = std::make_unique<CppAdInterface>(variableDim, parameterDim, modelName, folderName, functionName, infoLevel, regenerateLibrary);
           variableDim_ = variableDim;
@@ -260,6 +260,6 @@ protected:
 
 };
     
-} // namespace ContactSolver
+} // namespace CRISP
 
 #endif // OBJECTIVE_FUNCTION_H

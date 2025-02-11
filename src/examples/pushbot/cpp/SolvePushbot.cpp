@@ -1,9 +1,11 @@
 #include "solver_core/SolverInterface.h"
-#include "common/MatlabHelper.h"
+// #include "common/MatlabHelper.h"
 #include <chrono>
+#include <fstream>
+#include <string>
 #include "math.h"
 
-using namespace ContactSolver;
+using namespace CRISP;
 
 // Define model model parameters for pushbot
 const double dt = 0.02;
@@ -128,6 +130,45 @@ ad_function_with_param_t pushBotInitialConstraints = [](const ad_vector_t& x, co
                     x[3] - p[3];
 };
 
+void saveEigenVectorToTextFile(const Eigen::VectorXd& vec, const std::string& fileName) {
+    std::ofstream outFile(fileName);
+    if (!outFile.is_open()) {
+        throw std::runtime_error("Unable to open file for writing: " + fileName);
+    }
+    
+    for (int i = 0; i < vec.size(); ++i) {
+        outFile << vec[i] << "\n";
+    }
+    
+    outFile.close();
+}
+
+// we provide a helper function to read the txt file, as all the data is stored in eigen vectors, you can manage your own data storage and loading with ".mat",".txt",".bin", etc.
+vector_t loadEigenVectorFromTextFile(const std::string& fileName) {
+    std::ifstream inFile(fileName);
+    if (!inFile.is_open()) {
+        throw std::runtime_error("Unable to open file for reading: " + fileName);
+    }
+
+    std::vector<scalar_t> values;
+    std::string line;
+    while (std::getline(inFile, line)) {
+        std::istringstream iss(line);
+        scalar_t value;
+        iss >> value;
+        values.push_back(value);
+    }
+    
+    inFile.close();
+    
+    vector_t vec(values.size());
+    for (int i = 0; i < values.size(); ++i) {
+        vec[i] = values[i];
+    }
+    
+    return vec;
+}
+
 int main() {
     size_t variableNum = N * (num_state + num_control);
     std::string problemName = "PushbotSwingUp";
@@ -150,53 +191,36 @@ int main() {
     vector_t xInitialStates(num_state);
     vector_t xFinalStates(num_state);
     vector_t xInitialGuess(variableNum);
+    vector_t xOptimal(variableNum);
 
-    // --------------------- read matlab files for initial guess --------------------- //
-    // change the following matfile path to your own path
-    const char* variableName = "z_record";
-    size_t num_experiments = 30;
+
     SolverParameters params;
     SolverInterface solver(pushbotProblem, params);
+    // set hyperparameters for the solver
+    // solver.setHyperParameters("mu", vector_t::Constant(1, 100));
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-3));
     solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-3));
     // solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
-    solver.setHyperParameters("WeightedTolFactor", vector_t::Constant(1, 10));
-    // solver.serHyperParameters("mu", vector_t::Constant(1, 100));
-    std::string resultFolderPrefix = "/home/workspace/src/examples/pushbot/experiments/results_test/";
-    for (size_t i = 1; i <= num_experiments; ++i) {
-        // stop for 1s for storing the results in different names
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        std::string matFileName = "/home/workspace/src/examples/pushbot/experiments/initial_guess_0" + std::to_string(i) + ".mat";
-        MatlabHelper::readVariableFromMatFile(matFileName.c_str(), variableName, xInitialGuess);
-        xInitialStates << xInitialGuess[0], xInitialGuess[1], xInitialGuess[2], xInitialGuess[3];
-        if (i == 1) {
-            // initialize the solver interface with the problem
-            xFinalStates << 0,0,0,0;
-            solver.setProblemParameters("pushbotObjective", xFinalStates);
-            solver.setProblemParameters("pushBotInitialConstraints", xInitialStates);
-            solver.initialize(xInitialGuess);
-            solver.solve();
-            solver.getSolution();
-            solver.saveResults(resultFolderPrefix);
-        } else {
-            // adjust parameter dynamically and re-solve the problem
-            solver.setProblemParameters("pushBotInitialConstraints", xInitialStates);
-            solver.resetProblem(xInitialGuess);
-            solver.solve();
-            solver.getSolution();
-            solver.saveResults(resultFolderPrefix);
-        }
-    }
-}
-    // ------------ simple running example -------------//
-    // SolverParameters params;
-    // SolverInterface solver(pushbotProblem, params);
-    // // set the parameters for those parametric functions: mandatory
-    // solver.setProblemParameters("pushbotObjective", xFinalStates);
-    // solver.setProblemParameters("pushBotInitialConstraints", xInitialStates);
-    // // set the hyperparameters for the solver: optional
     // solver.setHyperParameters("verbose", vector_t::Constant(1, 1));
-    // // initialize the solve with initial guess and solve the problem
-    // solver.initialize(xInitialGuess);
+    
+    // read initial guess, change it to your own path
+    std::string txtFileName = "/home/workspace/src/examples/pushbot/initial_guess_pushbot_example.txt";
+    xInitialGuess = loadEigenVectorFromTextFile(txtFileName);
+    xInitialStates << xInitialGuess[0], xInitialGuess[1], xInitialGuess[2], xInitialGuess[3];
+    // initialize the solver interface with the problem
+    xFinalStates << 0,0,0,0;
+    // set problem parameters
+    solver.setProblemParameters("pushbotObjective", xFinalStates);
+    solver.setProblemParameters("pushBotInitialConstraints", xInitialStates);
+    solver.initialize(xInitialGuess);
+    solver.solve();
+    xOptimal = solver.getSolution();
+    
+}
+    // // adjust parameter dynamically and re-solve the problem
+    // solver.setProblemParameters("pushBotInitialConstraints", xInitialStatesNew);
+    // solver.resetProblem(xInitialGuess);
     // solver.solve();
-    // solver.getSolution();
+    // xOptimal = solver.getSolution();
+
+

@@ -3,7 +3,7 @@
 // test: the construction of a simple tracking problem.
 // This also serves as a template example for user to create their own optimization problem.
 
-using namespace ContactSolver;
+using namespace CRISP;
 
 // ------------------------ 1. Define the optimization problem ------------------------ //
 // min          obj

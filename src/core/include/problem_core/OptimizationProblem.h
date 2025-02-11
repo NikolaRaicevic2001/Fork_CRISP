@@ -7,7 +7,7 @@
 
 
 
-namespace ContactSolver {
+namespace CRISP {
 
 class OptimizationProblem {
 public:
@@ -353,6 +353,6 @@ private:
 
 };
 
-} // namespace ContactSolver
+} // namespace CRISP
 
 #endif // OPTIMIZATION_PROBLEM_H

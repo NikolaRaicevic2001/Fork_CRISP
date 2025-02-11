@@ -6,7 +6,7 @@
 #include <unordered_map>
 
 
-namespace ContactSolver {
+namespace CRISP {
 class ParametersManager {
 public:
 

@@ -1,6 +1,6 @@
 #include "solver_core/SolverInterface.h"
 
-using namespace ContactSolver;
+using namespace CRISP;
 
 // Define the objective and constraints using CppAD
 ad_function_t test5Objective = [](const ad_vector_t& x, ad_vector_t& y) {

@@ -1,9 +1,11 @@
 #include "solver_core/SolverInterface.h"
-#include "common/MatlabHelper.h"
+// #include "common/MatlabHelper.h"
 #include <chrono>
 #include "math.h"
+#include <fstream>
+#include <string>
 
-using namespace ContactSolver;
+using namespace CRISP;
 
 // Define model model parameters for pushbox
 const scalar_t m = 1.0;
@@ -107,20 +109,7 @@ ad_function_t HopperContactConstraints = [](const ad_vector_t& x, ad_vector_t& y
     std::cout << "contact constraints" << std::endl;
 };
 
-// // Define lambda equality constraints for 2D hopper
-// ad_function_t HopperLambdaConstraints = [](const ad_vector_t& x, ad_vector_t& y){
-//     y.resize(N);
-//     for (size_t i = 0; i < N; ++i) {
-//         size_t idx = i * (num_state + num_control);
-//         ad_scalar_t py_i = x[idx + 1];
-//         ad_scalar_t qy_i = x[idx + 3];
-//         ad_scalar_t theta_i = x[idx + 4];
-//         ad_scalar_t r_i = x[idx + 5];
-//         ad_scalar_t lambda_i = x[idx + 10];
-//         y[i] = lambda_i * r_i + (0.01-lambda_i) * (py_i - (l_0 - r_i) * cos(theta_i));
-//     }
-//         std::cout << "lambda constraints" << std::endl;
-// };
+
 
 
 // Define initial constraints for 2D hopper
@@ -136,64 +125,6 @@ ad_function_with_param_t HopperInitialConstraints = [](const ad_vector_t& x, con
                     x[7] - p[7];
     std::cout << "initial constraints" << std::endl;
 };
-
-// ad_function_with_param_t HopperObjective02 = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
-//     y.resize(1);
-//     y[0] = 0.0;
-
-//     ad_scalar_t tracking_cost(0.0);
-//     ad_scalar_t control_cost(0.0);
-
-//     Eigen::VectorXd ref_px = Eigen::VectorXd::Zero(N);
-//     Eigen::VectorXd ref_py(N);
-//     ref_py.setConstant(1.0);
-//     ref_py.head(20).setLinSpaced(20, 1.5, 0.2);
-//     ref_py.segment(20, 40).setLinSpaced(40, 0.2, 2.5);
-//     ref_py.segment(60, 30).setLinSpaced(30, 2.5, 1.0); 
-    
-//     Eigen::VectorXd ref_theta(N);
-//     ref_theta.setZero();
-//     // ref_theta.head(40).setZero();
-//     ref_theta.segment(50, 30).setLinSpaced(30, 0.0, 2 * M_PI);
-
-//     // 成本权重
-//     ad_matrix_t Q(num_state, num_state);
-//     Q.setZero();
-//     Q(0, 0) = 1;
-//     Q(1, 1) = 1;
-//     Q(4, 4) = 1;
-
-//     ad_matrix_t R(num_control, num_control);
-//     R.setZero();
-//     R(0, 0) = 0.001;
-//     R(1, 1) = 0.001;
-
-//     // 遍历每个时间步长
-//     for (size_t i = 0; i < N; ++i) {
-//         size_t idx = i * (num_state + num_control);
-//         ad_scalar_t px_i = x[idx + 0];
-//         ad_scalar_t py_i = x[idx + 1];
-//         ad_scalar_t theta_i = x[idx + 4];
-//         ad_scalar_t u1_i = x[idx + 8];
-//         ad_scalar_t u2_i = x[idx + 9];
-//         ad_vector_t tracking_error(num_state);
-//         tracking_error.setZero();
-//         tracking_error[0] = px_i - ref_px[i];
-//         tracking_error[1] = py_i - ref_py[i];
-//         tracking_error[4] = theta_i - ref_theta[i];
-
-//         tracking_cost += tracking_error.transpose() * Q * tracking_error;
-
-//         ad_vector_t control_error(num_control);
-//         control_error << u1_i, u2_i;
-//         control_cost += control_error.transpose() * R * control_error;
-//     }
-
-//     // 计算总成本
-//     y[0] = tracking_cost + control_cost;
-
-// };
-
 
 
 // Define objective function for 2D hopper
@@ -255,6 +186,31 @@ ad_function_with_param_t HopperObjective = [](const ad_vector_t& x, const ad_vec
     std::cout << "objective function" << std::endl;
 };
 
+// we provide a helper function to read the txt file, as all the data is stored in eigen vectors, you can manage your own data storage and loading with ".mat",".txt",".bin", etc.
+vector_t loadEigenVectorFromTextFile(const std::string& fileName) {
+    std::ifstream inFile(fileName);
+    if (!inFile.is_open()) {
+        throw std::runtime_error("Unable to open file for reading: " + fileName);
+    }
+
+    std::vector<scalar_t> values;
+    std::string line;
+    while (std::getline(inFile, line)) {
+        std::istringstream iss(line);
+        scalar_t value;
+        iss >> value;
+        values.push_back(value);
+    }
+    
+    inFile.close();
+    
+    vector_t vec(values.size());
+    for (int i = 0; i < values.size(); ++i) {
+        vec[i] = values[i];
+    }
+    
+    return vec;
+}
 
 int main(){
     size_t variableNum = N * (num_state + num_control);
@@ -263,107 +219,38 @@ int main(){
     OptimizationProblem HopperProblem(variableNum, problemName);
 
     auto obj = std::make_shared<ObjectiveFunction>(variableNum, num_state, problemName, folderName, "HopperObjective", HopperObjective);
-    // auto obj02 = std::make_shared<ObjectiveFunction>(variableNum, num_state, problemName, folderName, "HopperObjective02", HopperObjective02);
     auto dynamics = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "HopperDynamicConstraints", HopperDynamicConstraints);
     auto contact = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName,  "HopperContactConstraints", HopperContactConstraints);
     auto initial = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "HopperInitialConstraints", HopperInitialConstraints);
-    // auto lambda = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "HopperLambdaConstraints", HopperLambdaConstraints);
 
-    // ---------------------- ! the above four lines are enough for generate the auto-differentiation functions library for this problem and the usage in python ! ---------------------- //
 
     HopperProblem.addObjective(obj);
-    // HopperProblem.addObjective(obj02);
     HopperProblem.addEqualityConstraint(dynamics);
     HopperProblem.addEqualityConstraint(initial);
-    // HopperProblem.addEqualityConstraint(lambda);
     HopperProblem.addInequalityConstraint(contact);
     
     // problem parameters
     vector_t xInitialStates(num_state);
     vector_t xFinalStates(num_state);
     vector_t xInitialGuess(variableNum);
+    vector_t xOptimal(variableNum);
     // define the initial states
-    // xInitialStates << 0.0, l_0 + 0.5, 0.0, 0.5, 0, 0, 0, 0;
     xInitialStates << 0.0, l_0 + 0.5, 0.0, 0.5, 0, 0, 0, 0;
-    // set random initial guess beteween -0.01 and 0.01
     xInitialGuess.setZero();
-    // SizeVector lambda_idx_list;
-    // for (size_t i = 0; i < N; ++i) {
-    //     size_t lambda_idx = i * (num_state + num_control) + 10;
-    //     lambda_idx_list.push_back(lambda_idx); 
-    // }
-    // set initial guess of lambda to 0.01,0,0.01,0,0.01 each 20 steps
-    // for (size_t j = 0; j < lambda_idx_list.size(); ++j) {
-    //     scalar_t value_lambda = 0.0;
-    //     if (j % 20 == 0) {
-    //         if (value_lambda == 0.0) {
-    //             value_lambda = 0.01;
-    //         }
-    //         else {
-    //             value_lambda = 0.0;
-    //         }
-    //     }
-    //     xInitialGuess[lambda_idx_list[j]] = value_lambda;
-    // }
-    // xInitialGuess.segment(0, 8) = xInitialStates;
-    xFinalStates << 0, l_0 + 1.5, 0, 1.5, 0, 0, 0, 0;
-    xFinalStates << 3, l_0, 3, 0, 0, 0, 0, 0;
-    
-    // Eigen::VectorXd ref_px = Eigen::VectorXd::Zero(N);
-    // Eigen::VectorXd ref_py(N);
-    // ref_py.setConstant(1.0);
-    // ref_py.head(20).setLinSpaced(20, 1.5, 0.2);
-    // ref_py.segment(20, 40).setLinSpaced(40, 0.2, 2.5);
-    // ref_py.segment(60, 30).setLinSpaced(30, 2.5, 1.0); 
-    // vector_t ref_px(N);
-    // ref_px.setZero();
-    // vector_t ref_py(N);
-    // ref_py.setOnes();
-    // // interpolate the parobolic reference trajectory between initial and final states
-    // ref_px.segment(20,60).setLinSpaced(60, 0.0, 0.5);
-    // ref_px.segment(80,20).setConstant(0.5);
-    // ref_py.segment(20,30).setLinSpaced(30, 1.0, 2.5);
-    // ref_py.segment(50,50).setLinSpaced(50, 2.5, 1.0);
-
-    // for (size_t i = 0; i < N; ++i) {
-    //     size_t idx = i * (num_state + num_control);
-    //     xInitialGuess[idx + 0] = ref_px[i];
-    //     xInitialGuess[idx + 1] = ref_py[i];
-    // }
-
-    
-    // Eigen::VectorXd ref_theta(N);
-    // ref_theta.setZero();
-    // // ref_theta.head(40).setZero();
-    // ref_theta.segment(50, 30).setLinSpaced(30, 0.0, 2 * M_PI);
-    // for (size_t i = 0; i < N; ++i) {
-    //     size_t idx = i * (num_state + num_control);
-    //     xInitialGuess[idx + 0] = ref_px[i];
-    //     xInitialGuess[idx + 1] = ref_py[i];
-    //     xInitialGuess[idx + 4] = ref_theta[i];
-    // }
-
-
-    const char* variableName = "z_record";
-    std::string matFileName = "/home/workspace/src/examples/2dHopper/ylhopper_4.mat";
-    MatlabHelper::readVariableFromMatFile(matFileName.c_str(), variableName, xInitialGuess);   
-    std::cout << "Initial guess: " << xInitialGuess.transpose() << std::endl;
+    xFinalStates << 2, l_0, 2, 0, 0, 0, 0, 0;
+    // read free fall initial guess from the txt file
+    xInitialGuess = loadEigenVectorFromTextFile("/home/workspace/src/examples/2dHopper/initial_guess_example_hopper.txt");
     SolverParameters params;
     SolverInterface solver(HopperProblem, params);
-    // solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
-    // solver.setHyperParameters("mu", vector_t::Constant(1,10));
-    solver.setHyperParameters("verbose", vector_t::Constant(1, 1));
-    solver.setProblemParameters("HopperInitialConstraints", xInitialStates);
+    solver.setHyperParameters("mu", vector_t::Constant(1,1));
     solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-3));
-    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e8));
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-3));
-    solver.setHyperParameters("constraintTol", vector_t::Constant(1, 5e-3));
-    solver.setHyperParameters("maxIterations", vector_t::Constant(1, 20000));
-    std::string resultFolderPrefix = "/home/workspace/src/examples/2dHopper/experiments/results_exp";
+    solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-3));
+
     solver.setProblemParameters("HopperObjective", xFinalStates);
+    solver.setProblemParameters("HopperInitialConstraints", xInitialStates);
+
     solver.initialize(xInitialGuess);
     solver.solve();
-    solver.getSolution();
-    solver.saveResults(resultFolderPrefix);
-    std::cout << "Finish solving the problem with final state: " << xFinalStates.transpose() << std::endl;
+    xOptimal = solver.getSolution();
     }

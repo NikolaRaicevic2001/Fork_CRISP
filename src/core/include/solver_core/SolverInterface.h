@@ -8,9 +8,8 @@
 #include <boost/filesystem.hpp>
 #include "piqp/piqp.hpp" // qp solver
 #include <ctime>
-#include <mat.h> // for saving the result to matlab file
 
-namespace ContactSolver {
+namespace CRISP {
 class SolverInterface {
 public:
     SolverInterface(OptimizationProblem& problem, SolverParameters& parameters) : problem_(problem), solverParameters_(parameters), initialized_(false) {
@@ -82,35 +81,35 @@ public:
         etaLow_ = solverParameters_.getParameters("etaLow")(0);
         etaHigh_ = solverParameters_.getParameters("etaHigh")(0);
         trustRegionRadius_ = trustRegionInitRadius_;
-        prepareStaticTriplet();
-
-        //     std::cout << std::string(60, '=') << '\n';
-        std::cout << std::string(60, '=') << '\n';
-        std::cout << center("SOLVER INITIALIZATION", 60) << '\n';
-        std::cout << std::string(60, '=') << '\n';
-        std::cout << "|  THIS SOLVER IS DEVELOPED by the Computational Robotics Lab  |\n";
-        std::cout << "|                      Harvard University                      |\n";
-        std::cout << std::string(60, '-') << '\n';
-        std::cout << "| Problem Details:                                              \n";
-        std::cout << "|   Name:               " << std::setw(30) << std::left << problemName_ << "|\n";
-        std::cout << "|   Variables:          " << std::setw(30) << std::left << variableDim_ << "|\n";
-        std::cout << "|   Eq Constraints:     " << std::setw(30) << std::left << numEqualityConstraints_ << "|\n";
-        std::cout << "|   Ineq Constraints:   " << std::setw(30) << std::left << numInequalityConstraints_ << "|\n";
-        std::cout << "|   Total Constraints:  " << std::setw(30) << std::left << numConstraints_ << "|\n";
-        std::cout << std::string(60, '-') << '\n';
-        std::cout << "| Solver Parameters:                                            \n";
-        std::cout << "|   Max Iterations:     " << std::setw(30) << std::left << maxIterations_ << "|\n";
-        std::cout << "|   Trail Tolerance:    " << std::setw(30) << std::left << trailTol_ << "|\n";
-        std::cout << "|   Trust Reg Tol:      " << std::setw(30) << std::left << trustRegionTol_ << "|\n";
-        std::cout << "|   Const Tol:          " << std::setw(30) << std::left << constraintTol_ << "|\n";
-        std::cout << "|   Init Trust Rad:     " << std::setw(30) << std::left << trustRegionInitRadius_ << "|\n";
-        std::cout << "|   Max Trust Rad:      " << std::setw(30) << std::left << trustRegionMaxRadius_ << "|\n";
-        std::cout << "|   Mu:                 " << std::setw(30) << std::left << mu_ << "|\n";
-        std::cout << "|   Mu Max:             " << std::setw(30) << std::left << muMax_ << "|\n";
-        std::cout << "|   Eta Low:            " << std::setw(30) << std::left << etaLow_ << "|\n";
-        std::cout << "|   Eta High:           " << std::setw(30) << std::left << etaHigh_ << "|\n";
-        std::cout << std::string(60, '=') << '\n';
-
+        // prepareStaticTriplet();
+        if (solverParameters_.getParameters("verbose")(0) > 0) {
+            //     std::cout << std::string(60, '=') << '\n';
+            std::cout << std::string(60, '=') << '\n';
+            std::cout << center("SOLVER INITIALIZATION", 60) << '\n';
+            std::cout << std::string(60, '=') << '\n';
+            std::cout << "|                      CRISP                                   |\n";
+            std::cout << std::string(60, '-') << '\n';
+            std::cout << "| Problem Details:                                              \n";
+            std::cout << "|   Name:               " << std::setw(30) << std::left << problemName_ << "|\n";
+            std::cout << "|   Variables:          " << std::setw(30) << std::left << variableDim_ << "|\n";
+            std::cout << "|   Eq Constraints:     " << std::setw(30) << std::left << numEqualityConstraints_ << "|\n";
+            std::cout << "|   Ineq Constraints:   " << std::setw(30) << std::left << numInequalityConstraints_ << "|\n";
+            std::cout << "|   Total Constraints:  " << std::setw(30) << std::left << numConstraints_ << "|\n";
+            std::cout << std::string(60, '-') << '\n';
+            std::cout << "| Solver Parameters:                                            \n";
+            std::cout << "|   Max Iterations:     " << std::setw(30) << std::left << maxIterations_ << "|\n";
+            std::cout << "|   Trail Tolerance:    " << std::setw(30) << std::left << trailTol_ << "|\n";
+            std::cout << "|   Trust Reg Tol:      " << std::setw(30) << std::left << trustRegionTol_ << "|\n";
+            std::cout << "|   Const Tol:          " << std::setw(30) << std::left << constraintTol_ << "|\n";
+            std::cout << "|   Init Trust Rad:     " << std::setw(30) << std::left << trustRegionInitRadius_ << "|\n";
+            std::cout << "|   Max Trust Rad:      " << std::setw(30) << std::left << trustRegionMaxRadius_ << "|\n";
+            std::cout << "|   Mu:                 " << std::setw(30) << std::left << mu_ << "|\n";
+            std::cout << "|   Mu Max:             " << std::setw(30) << std::left << muMax_ << "|\n";
+            std::cout << "|   Eta Low:            " << std::setw(30) << std::left << etaLow_ << "|\n";
+            std::cout << "|   Eta High:           " << std::setw(30) << std::left << etaHigh_ << "|\n";
+            std::cout << "|   Weighted Mode:      " << std::setw(30) << std::left << weightedMode_ << "|\n";
+            std::cout << std::string(60, '=') << '\n';
+        }
     }
     // Centering string method
     std::string center(const std::string &text, int width) {
@@ -142,16 +141,17 @@ public:
         trustRegionRadius_ = trustRegionInitRadius_;
         weightedMode_ = solverParameters_.getParameters("WeightedMode")(0);
         weightedTol_ = solverParameters_.getParameters("WeightedTolFactor")(0);
+        secondOrderCorrection_ = solverParameters_.getParameters("secondOrderCorrection")(0);
         mu_matrix_.setIdentity();
         mu_matrix_ *= mu_;
         mu_matrix_.makeCompressed();
         // clear history
-        xHistory_.clear();
-        meritHistory_.clear();
+        // xHistory_.clear();
+        // meritHistory_.clear();
         costHistory_.clear();
-        eqViolationHistory_.clear();
-        ineqViolationHistory_.clear();
-        trustRegionRadiusHistory_.clear();
+        // eqViolationHistory_.clear();
+        // ineqViolationHistory_.clear();
+        // trustRegionRadiusHistory_.clear();
         
     }
 
@@ -165,18 +165,22 @@ public:
         problem_.setParameters(name, params);
     }
 
-    void prepareStaticTriplet() {
-        // prepare the triplet for the static part of the subproblem
-        // equality constraints
-        for (size_t i = 0; i < numEqualityConstraints_; ++i) {
-            tripletListFixed_Aeq_.emplace_back(i, i + offsetV_, -1.0);
-            tripletListFixed_Aeq_.emplace_back(i, i + offsetW_, 1.0);
-        }
-        // inequality constraints
-        for (size_t i = 0; i < numInequalityConstraints_; ++i) {
-            tripletListFixed_Aineq_.emplace_back(i, i + offsetT_, 1.0);
-        }
-    }
+    // void prepareStaticTriplet() {
+    //     // prepare the triplet for the static part of the subproblem
+    //     // equality constraints
+    //     for (size_t i = 0; i < numEqualityConstraints_; ++i) {
+    //         tripletListFixed_Aeq_.emplace_back(i, i + offsetV_, -1.0);
+    //         tripletListFixed_Aeq_.emplace_back(i, i + offsetW_, 1.0);
+    //     }
+    //     // inequality constraints
+    //     for (size_t i = 0; i < numInequalityConstraints_; ++i) {
+    //         tripletListFixed_Aineq_.emplace_back(i, i + offsetT_, 1.0);
+    //     }
+    // }
+
+
+
+    // print the result
 
     void solve() {
         // initialization
@@ -190,19 +194,6 @@ public:
         // value of the constraints
         eqValues_ = problem_.evaluateEqualityConstraints(xIterate_);
         ineqValues_ = problem_.evaluateInequalityConstraints(xIterate_);
-        for (size_t i = 0; i < numEqualityConstraints_; ++i) {
-            if (eqValues_.array().abs()[i] > constraintTol_) {
-                std::cout << "equality constraint " << i <<  std::endl;
-                std::cout << "equality value " << eqValues_[i] << std::endl;
-    
-            }
-        }
-        for (size_t i = 0; i < numInequalityConstraints_; ++i) {
-            if (-ineqValues_[i] > constraintTol_) {;
-                std::cout << "inequality constraint " << i << std::endl;
-                std::cout << "inequality value " << ineqValues_[i] << std::endl;
-            }
-        }
         eqJacCSR_ = problem_.evaluateEqualityConstraintsJacobianCSR(xIterate_);
         eqJacMat_.resize(numEqualityConstraints_, variableDim_);
         eqJacMat_.reserve(numNonZerosEqJac_);
@@ -218,16 +209,9 @@ public:
         time_total = 0.0;
         // main loop, reuse data from the previous iteration to improve efficiency.
         auto startsolve = std::chrono::high_resolution_clock::now();
-        std::cout << "Initial equality violation: " << eqValues_.array().abs().maxCoeff() << std::endl;
-        std::cout << "Initial inequality violation: " << (-ineqValues_).array().maxCoeff() << std::endl;
         for (currentIterate_ = 0; currentIterate_ < maxIterations_; ++currentIterate_) {
             // store the previous iterate
-            xHistory_.push_back(xIterate_); // Maintain full state for x
-            meritHistory_.push_back(phi_);
             costHistory_.push_back(obj_);
-            eqViolationHistory_.push_back(eqValues_.array().abs().maxCoeff());
-            ineqViolationHistory_.push_back((-ineqValues_).array().maxCoeff());
-            trustRegionRadiusHistory_.push_back(trustRegionRadius_);
             if (solverParameters_.getParameters("verbose")(0) > 0) {
                 std::cout << "Iteration: " << currentIterate_ << " Objective: " << obj_ << " Merit: " << phi_ << " Trust region: " << trustRegionRadius_ << std::endl;
                 std::cout << "Equality violation: " << eqValues_.array().abs().maxCoeff() << " Inequality violation: " << (-ineqValues_).array().maxCoeff() << std::endl;
@@ -249,7 +233,6 @@ public:
             phi_pk_ = evaluateMeritFunction(objNext, eqValuesNext, ineqValuesNext); // mertit function at the trial step
             q_mu_pk_ = evaluateQuadraticModel(obj_, objJac_, eqValues_, ineqValues_, objHessMat_, eqJacMat_, ineqJacMat_, pTrial_); // quadratic model at the trial step
             // second order correction if actual reduction less than 0;
-            bool secondOrderCorrection = false;
             if (phi_ - phi_pk_ < 0) {
                 // std::cout << "actual reduction before second order correction: " << phi_ - phi_pk_ << std::endl;
                 // modify the subproblem, resolve for a new trial step to consider the second order correction
@@ -266,14 +249,10 @@ public:
                 q_mu_0_ = evaluateQuadraticModel(obj_, objJac_, -subproblem_.beq, -subproblem_.bineq, objHessMat_, eqJacMat_, ineqJacMat_);
                 q_mu_pk_ = evaluateQuadraticModel(obj_, objJac_, -subproblem_.beq, -subproblem_.bineq, objHessMat_, eqJacMat_, ineqJacMat_, pTrial_);
                 phi_pk_ = evaluateMeritFunction(objNext, eqValuesNext, ineqValuesNext); // mertit function at the trial step
-                // std::cout << "actual reduction after second order correction: " << phi_ - phi_pk_ << std::endl;
             }
  
             reduction_ratio_ = (phi_ - phi_pk_) / (q_mu_0_ - q_mu_pk_);
-            // std::cout << "Reduction ratio: " << reduction_ratio_ << std::endl;
             scalar_t reduction_actual_ = phi_ - phi_pk_;
-            // auto end_evaq = std::chrono::high_resolution_clock::now();
-            // std::cout << "Quadratic model evaluation time: " << std::chrono::duration_cast<std::chrono::microseconds>(end_evaq - start_evaq).count() << "us" << std::endl;
             if (updateTrustRegionRadius(reduction_ratio_, reduction_actual_)) {
                 // if the trial step is accepted, update the iterate
                 xIterate_ = xIterateNext_;
@@ -293,7 +272,6 @@ public:
             else {
                 // if the trial step is rejected, the trust region radius is shrinked but not update the iterate.
                 // std::cout<<"Trial step rejected."<<std::endl;
-                // todo: add tolerance steps for jumping out of some bad local minimum.
             }
 
             // check the stopping criteria, increase the penalty if necessary.
@@ -303,190 +281,78 @@ public:
         }
         auto endsolve = std::chrono::high_resolution_clock::now();
         time_total = std::chrono::duration_cast<std::chrono::milliseconds>(endsolve - startsolve).count();
-        xHistory_.push_back(xIterate_); // Maintain full state for x
-        meritHistory_.push_back(phi_);
+        // xHistory_.push_back(xIterate_); // Maintain full state for x
+        // meritHistory_.push_back(phi_);
         costHistory_.push_back(obj_);
-        eqViolationHistory_.push_back(eqValues_.array().abs().maxCoeff());
-        ineqViolationHistory_.push_back((-ineqValues_).array().maxCoeff());
-        trustRegionRadiusHistory_.push_back(trustRegionRadius_);
+        // eqViolationHistory_.push_back(eqValues_.array().abs().maxCoeff());
+        // ineqViolationHistory_.push_back((-ineqValues_).array().maxCoeff());
+        // trustRegionRadiusHistory_.push_back(trustRegionRadius_);
         // saveResults(); // save the results to .mat file
-        std::cout << "QP solver time: " << time_qp << "us" << std::endl;
-
     }
 
     vector_t getSolution() {
         std::cout << "Optimization problem:" << problemName_ << " solved in " << currentIterate_ << " iterations." << std::endl;
         std::cout << "Solver time: " << time_total << "ms" << std::endl;
+        std::cout << "QP solver time: " << time_qp/1000 << "ms" << std::endl;
         std::cout << "max constraint violation: equality: " << eqValues_.array().abs().maxCoeff() << " inequality: " << (-ineqValues_).array().maxCoeff() << std::endl;
-        std::cout << "obj decrease from " << costHistory_[0] << " to " << costHistory_.back() << std::endl;
-        // std::cout << "eq constraints violation norm from " << initial_squareNorm_eq_ << " to " << eqValues_.squaredNorm() << std::endl;
-        // std::cout << "ineq constraints violation norm from " << initial_squareNorm_ineq_ << " to " << (-ineqValues_).array().max(0.0).matrix().squaredNorm() << std::endl;
-        // std::cout << "all constraints violation: equality: " << eqValues_.array().abs() << " inequality: " << (-ineqValues_).array() << std::endl;
+        std::cout << "obj from " << costHistory_[0] << " to " << costHistory_.back() << std::endl;
         return xIterate_;
     }
 
-
-
-
-void solvetriplet() {
-        // initialization
-        obj_ = problem_.evaluateObjective(xIterate_);
-        objJac_ = problem_.evaluateObjectiveGradient(xIterate_).toDense().row(0).transpose();
-        // obj
-        objHessTriplets_ = problem_.evaluateObjectiveHessianTriplet(xIterate_);
-        objHessMat_.resize(variableDim_, variableDim_);
-        objHessMat_.setFromTriplets(objHessTriplets_.begin(), objHessTriplets_.end());
-        // value of the constraints
-        eqValues_ = problem_.evaluateEqualityConstraints(xIterate_);
-        ineqValues_ = problem_.evaluateInequalityConstraints(xIterate_);
-        // Jacobian of the constraints
-        eqJacTriplets_ = problem_.evaluateEqualityConstraintsJacobianTriplet(xIterate_);
-        eqJacMat_.resize(numEqualityConstraints_, variableDim_);
-        eqJacMat_.setFromTriplets(eqJacTriplets_.begin(), eqJacTriplets_.end());
-        ineqJacTriplets_ = problem_.evaluateInequalityConstraintsJacobianTriplet(xIterate_);
-        ineqJacMat_.resize(numInequalityConstraints_, variableDim_);
-        ineqJacMat_.setFromTriplets(ineqJacTriplets_.begin(), ineqJacTriplets_.end());
-        secondOrderCorrectionCount = 0;
-        phi_ = evaluateMeritFunction(obj_, eqValues_, ineqValues_);
-        q_mu_0_ = evaluateQuadraticModel(obj_, objJac_, eqValues_, ineqValues_, objHessMat_, eqJacMat_, ineqJacMat_, vector_t::Zero(variableDim_));
-        auto time_qp = 0.0;
-        auto time_update = 0.0;
-        // main loop, reuse data from the previous iteration to improve efficiency.
-        for (currentIterate_ = 0; currentIterate_ < maxIterations_; ++currentIterate_) {
-            // store the previous iterate
-            xHistory_.push_back(xIterate_); // Maintain full state for x
-            meritHistory_.push_back(phi_);
-            costHistory_.push_back(obj_);
-            eqViolationHistory_.push_back(eqValues_.array().abs().maxCoeff());
-            ineqViolationHistory_.push_back((-ineqValues_).array().maxCoeff());
-            trustRegionRadiusHistory_.push_back(trustRegionRadius_);
-            if (solverParameters_.getParameters("verbose")(0) > 0) {
-                std::cout << "Iteration: " << currentIterate_ << " Objective: " << obj_ << " Merit: " << phi_ << " Trust region: " << trustRegionRadius_ << std::endl;
-            }
-            // construct the subproblem
-            subproblem_ = constructSubproblem(objJac_, objHessTriplets_, eqValues_, ineqValues_, eqJacTriplets_, ineqJacTriplets_); // construct the subproblem
-            auto startsol = std::chrono::high_resolution_clock::now();
-            subsolution_ = solveSubproblem(subproblem_); // solve the subproblem
-            auto endsol = std::chrono::high_resolution_clock::now();
-            time_qp += std::chrono::duration_cast<std::chrono::microseconds>(endsol - startsol).count();
-            pTrial_ = subsolution_.segment(0, variableDim_); // extract trial step
-            // evaluate necessary value at the trial step
-            xIterateNext_ = xIterate_ + pTrial_;
-           
-            auto objNext = problem_.evaluateObjective(xIterateNext_);
-            auto eqValuesNext = problem_.evaluateEqualityConstraints(xIterateNext_);
-            auto ineqValuesNext = problem_.evaluateInequalityConstraints(xIterateNext_);
-
-            
-            phi_pk_ = evaluateMeritFunction(objNext, eqValuesNext, ineqValuesNext); // mertit function at the trial step
-            // second order correction if actual reduction less than 0;
-            if (phi_ - phi_pk_ < 0) {
-                std::cout << "actual reduction before second order correction: " << phi_ - phi_pk_ << std::endl;
-                // modify the subproblem, resolve for a new trial step to consider the second order correction
-                secondOrderCorrectionCount++;
-                // change subproblem_.beq->-(eqValuesNext-eqconstraintJac*ptrial) and subproblem_.bineq->-(IneqValuesNext-IneqconstraintJac*ptrial) and resolve the problem.
-                subproblem_.beq = -(eqValuesNext - eqJacMat_ * pTrial_);
-                subproblem_.bineq = -(ineqValuesNext - ineqJacMat_ * pTrial_);
-                subsolution_ = solveSubproblem(subproblem_);
-                pTrial_ = subsolution_.segment(0, variableDim_);
-                xIterateNext_ = xIterate_ + pTrial_;
-                objNext = problem_.evaluateObjective(xIterateNext_);
-                eqValuesNext = problem_.evaluateEqualityConstraints(xIterateNext_);
-                ineqValuesNext = problem_.evaluateInequalityConstraints(xIterateNext_);
-                phi_pk_ = evaluateMeritFunction(objNext, eqValuesNext, ineqValuesNext); // mertit function at the trial step
-                std::cout << "actual reduction after second order correction: " << phi_ - phi_pk_ << std::endl;
-            }
-            // auto start_evaq = std::chrono::high_resolution_clock::now();
-            q_mu_pk_ = evaluateQuadraticModel(obj_, objJac_, eqValues_, ineqValues_, objHessMat_, eqJacMat_, ineqJacMat_, pTrial_); // quadratic model at the trial step
-            reduction_ratio_ = (phi_ - phi_pk_) / (q_mu_0_ - q_mu_pk_);
-            scalar_t reduction_actual_ = phi_ - phi_pk_;
-            // auto end_evaq = std::chrono::high_resolution_clock::now();
-            // std::cout << "Quadratic model evaluation time: " << std::chrono::duration_cast<std::chrono::microseconds>(end_evaq - start_evaq).count() << "us" << std::endl;
-            if (updateTrustRegionRadius(reduction_ratio_, reduction_actual_)) {
-                // if the trial step is accepted, update the iterate
-                xIterate_ = xIterateNext_;
-                obj_ = objNext;
-                eqValues_ = eqValuesNext;
-                ineqValues_ = ineqValuesNext;
-                phi_ = phi_pk_;
-
-                objJac_ = problem_.evaluateObjectiveGradient(xIterate_).toDense().row(0).transpose();
-                objHessTriplets_ = problem_.evaluateObjectiveHessianTriplet(xIterate_);
-                objHessMat_.setFromTriplets(objHessTriplets_.begin(), objHessTriplets_.end());
-                eqJacTriplets_ = problem_.evaluateEqualityConstraintsJacobianTriplet(xIterate_);
-                eqJacMat_.setFromTriplets(eqJacTriplets_.begin(), eqJacTriplets_.end());
-                ineqJacTriplets_ = problem_.evaluateInequalityConstraintsJacobianTriplet(xIterate_);
-                q_mu_0_ = phi_;
-            }
-            else {
-                // if the trial step is rejected, the trust region radius is shrinked but not update the iterate.
-                // std::cout<<"Trial step rejected."<<std::endl;
-            }
-
-            // check the stopping criteria, increase the penalty if necessary.
-            if (checkStoppingCriteria()) {
-                break;
-            }
-        }
-        // saveResults(); // save the results to .mat file
-        std::cout << "QP solver time: " << time_qp << "us" << std::endl;
-
-    }
-
     void saveResults(const std::string& folderPrefix) {
-        // Get the current time as a unique identifier
-        std::time_t t = std::time(nullptr);
-        std::ostringstream fileNameStream;
-        fileNameStream << problemName_ << "_result_" << t;  // Use current time for unique naming
-        std::string folderName = fileNameStream.str();
-        std::string folderPath = folderPrefix + "/" + folderName;
+        // // Get the current time as a unique identifier
+        // std::time_t t = std::time(nullptr);
+        // std::ostringstream fileNameStream;
+        // fileNameStream << problemName_ << "_result_" << t;  // Use current time for unique naming
+        // std::string folderName = fileNameStream.str();
+        // std::string folderPath = folderPrefix + "/" + folderName;
 
-        try {
-            // Create necessary directories using Boost
-            if (!boost::filesystem::exists(folderPrefix)) {
-                boost::filesystem::create_directory(folderPrefix);
-            }
+        // try {
+        //     // Create necessary directories using Boost
+        //     if (!boost::filesystem::exists(folderPrefix)) {
+        //         boost::filesystem::create_directory(folderPrefix);
+        //     }
 
-            boost::filesystem::create_directory(folderPath);
+        //     boost::filesystem::create_directory(folderPath);
 
-            std::string fullFileName = folderPath + "/data.mat";
-            // MAT-file creation with MATLAB API
-            MATFile *matFile = matOpen(fullFileName.c_str(), "w");
-            if (!matFile) {
-                std::cerr << "Error opening MAT-file for writing: " << fullFileName << std::endl;
-                return;
-            }
+        //     std::string fullFileName = folderPath + "/data.mat";
+        //     // MAT-file creation with MATLAB API
+        //     MATFile *matFile = matOpen(fullFileName.c_str(), "w");
+        //     if (!matFile) {
+        //         std::cerr << "Error opening MAT-file for writing: " << fullFileName << std::endl;
+        //         return;
+        //     }
 
-            if (!xHistory_.empty()) {
-                size_t numVars = xHistory_[0].size();
-                mxArray* xHistArray = mxCreateDoubleMatrix(numVars, xHistory_.size(), mxREAL);
-                auto pr = mxGetPr(xHistArray);
-                for (size_t i = 0; i < xHistory_.size(); ++i) {
-                    std::copy(xHistory_[i].data(), xHistory_[i].data() + numVars, pr + numVars * i);
-                }
-                matPutVariable(matFile, "xHistory", xHistArray);
-                mxDestroyArray(xHistArray);
-            }
-            // Helper lambda for writing scalar vectors to MAT-file
-            auto writeScalarVector = [&](const std::string& varName, const std::vector<scalar_t>& data) {
-                mxArray* array = mxCreateDoubleMatrix(data.size(), 1, mxREAL);
-                std::copy(data.begin(), data.end(), mxGetPr(array));
-                matPutVariable(matFile, varName.c_str(), array);
-                mxDestroyArray(array);
-            };
+        //     if (!xHistory_.empty()) {
+        //         size_t numVars = xHistory_[0].size();
+        //         mxArray* xHistArray = mxCreateDoubleMatrix(numVars, xHistory_.size(), mxREAL);
+        //         auto pr = mxGetPr(xHistArray);
+        //         for (size_t i = 0; i < xHistory_.size(); ++i) {
+        //             std::copy(xHistory_[i].data(), xHistory_[i].data() + numVars, pr + numVars * i);
+        //         }
+        //         matPutVariable(matFile, "xHistory", xHistArray);
+        //         mxDestroyArray(xHistArray);
+        //     }
+        //     // Helper lambda for writing scalar vectors to MAT-file
+        //     auto writeScalarVector = [&](const std::string& varName, const std::vector<scalar_t>& data) {
+        //         mxArray* array = mxCreateDoubleMatrix(data.size(), 1, mxREAL);
+        //         std::copy(data.begin(), data.end(), mxGetPr(array));
+        //         matPutVariable(matFile, varName.c_str(), array);
+        //         mxDestroyArray(array);
+        //     };
 
-            // Save the necessary data
-            writeScalarVector("meritHistory", meritHistory_);
-            writeScalarVector("costHistory", costHistory_);
-            writeScalarVector("eqViolationHistory", eqViolationHistory_);
-            writeScalarVector("ineqViolationHistory", ineqViolationHistory_);
-            writeScalarVector("trustRegionRadiusHistory", trustRegionRadiusHistory_);
+        //     // Save the necessary data
+        //     // writeScalarVector("meritHistory", meritHistory_);
+        //     writeScalarVector("costHistory", costHistory_);
+        //     // writeScalarVector("eqViolationHistory", eqViolationHistory_);
+        //     // writeScalarVector("ineqViolationHistory", ineqViolationHistory_);
+        //     // writeScalarVector("trustRegionRadiusHistory", trustRegionRadiusHistory_);
 
-            matClose(matFile);
-            } catch (const boost::filesystem::filesystem_error& e) {
-                std::cerr << "Filesystem error: " << e.what() << std::endl;
-            }
-            std::cout << "Results saved to: " << folderPath << std::endl;
+        //     matClose(matFile);
+        //     } catch (const boost::filesystem::filesystem_error& e) {
+        //         std::cerr << "Filesystem error: " << e.what() << std::endl;
+        //     }
+        //     std::cout << "Results saved to: " << folderPath << std::endl;
     }
 
 private:
@@ -562,49 +428,6 @@ private:
     }
  
 
-
-    SubproblemData constructSubproblem(const vector_t& objJac, const triplet_vector_t& objHess, const vector_t& eqValues, const vector_t& ineqValues, const triplet_vector_t& eqJac, const triplet_vector_t& ineqJac) {
-        // construct the subproblem for the QP solver
-        // resize the members of the subproblem
-        SubproblemData subproblem(totalVars_, numEqualityConstraints_, numInequalityConstraints_, variableDim_);
-        // auto start01 = std::chrono::high_resolution_clock::now();
-        // obj gradient and hessian. g = [objJac;mu*ones(2*numEqualityConstraints+numInequalityConstraints,1)]
-        subproblem.g.setConstant(mu_);
-        subproblem.g.head(variableDim_) = objJac;
-        // auto end01 = std::chrono::high_resolution_clock::now();
-        // std::cout << "Subproblem01: " << std::chrono::duration_cast<std::chrono::microseconds>(end01 - start01).count() << "us" << std::endl;
-        // auto start02 = std::chrono::high_resolution_clock::now();
-        subproblem.H.setFromTriplets(objHess.begin(), objHess.end()); // only left-top part of the Hessian has values
-        // auto end02 = std::chrono::high_resolution_clock::now();
-        // std::cout << "Subproblem02: " << std::chrono::duration_cast<std::chrono::microseconds>(end02 - start02).count() << "us" << std::endl;
-        // equality constraints
-        triplet_vector_t eqJacTrip = eqJac;
-        // add the fixed part of the equality constraints
-        eqJacTrip.insert(eqJacTrip.end(), tripletListFixed_Aeq_.begin(), tripletListFixed_Aeq_.end());
-        // auto start03 = std::chrono::high_resolution_clock::now();
-        subproblem.Aeq.setFromTriplets(eqJacTrip.begin(), eqJacTrip.end());
-        subproblem.beq = -eqValues;
-        // auto end03 = std::chrono::high_resolution_clock::now();
-        // std::cout << "Subproblem03: " << std::chrono::duration_cast<std::chrono::microseconds>(end03 - start03).count() << "us" << std::endl;
-        // inequality constraints
-        // auto start04 = std::chrono::high_resolution_clock::now();
-        triplet_vector_t ineqJacTrip = ineqJac;
-        // add the fixed part of the inequality constraints
-        ineqJacTrip.insert(ineqJacTrip.end(), tripletListFixed_Aineq_.begin(), tripletListFixed_Aineq_.end());
-        subproblem.Aineq.setFromTriplets(ineqJacTrip.begin(), ineqJacTrip.end());
-        subproblem.bineq = -ineqValues;
-        // auto end04 = std::chrono::high_resolution_clock::now();
-        // std::cout << "Subproblem04: " << std::chrono::duration_cast<std::chrono::microseconds>(end04 - start04).count() << "us" << std::endl;
-        // bounds
-        subproblem.lb.setZero();
-        subproblem.lb.head(variableDim_).setConstant(-trustRegionRadius_);
-        // inf ub bounds for the slack variables
-        subproblem.ub.setConstant(std::numeric_limits<scalar_t>::infinity());
-        subproblem.ub.head(variableDim_).setConstant(trustRegionRadius_);
-        subproblem.x0.setZero();
-        return subproblem;
-    }
-
     scalar_t evaluateMeritFunction(const scalar_t& obj, const vector_t& eqValues, const vector_t& ineqValues)
     {
         // return obj + mu_ * (eqValues.array().abs().sum() + ((-ineqValues).array().max(0.0)).sum());
@@ -645,27 +468,16 @@ private:
         auto startsol = std::chrono::high_resolution_clock::now();
         // solve the subproblem using the QP solver
         if (currentIterate_ == 0) {
-            // piqpSolver_.settings().max_iter = 100;
+            // piqpSolver_.settings().max_iter = 200;
             piqpSolver_.setup(subproblem.H, subproblem.g, subproblem.Aeq, subproblem.beq, -subproblem.Aineq, -subproblem.bineq, subproblem.lb, subproblem.ub);
         }
         else {
             piqpSolver_.update(subproblem.H, subproblem.g, subproblem.Aeq, subproblem.beq, -subproblem.Aineq, -subproblem.bineq, subproblem.lb, subproblem.ub);
         }
-        // piqpSolver_.setup(subproblem.H, subproblem.g, subproblem.Aeq, subproblem.beq, -subproblem.Aineq, -subproblem.bineq, subproblem.lb, subproblem.ub);
-        piqp::Status status = piqpSolver_.solve();
-        // std::cout << "status = " << status << std::endl;        
+        piqp::Status status = piqpSolver_.solve();     
         auto endsol = std::chrono::high_resolution_clock::now();
         time_qp += std::chrono::duration_cast<std::chrono::microseconds>(endsol - startsol).count();
         return piqpSolver_.result().x;
-
-    }
-
-    void resetPenalty() {
-        // reset penalty
-        xIterate_ = xInitial_;
-        // reset the parameters
-        mu_ = std::min(10 * mu_, muMax_);
-        trustRegionRadius_ = trustRegionInitRadius_;
 
     }
 
@@ -689,26 +501,9 @@ private:
     bool checkStoppingCriteria() {
         // check the stopping criteria
         if (trustRegionRadius_ < trustRegionTol_ || pTrial_.norm()/xIterate_.norm() < trailTol_) {
-            std::cout << "no apparent progress, examing the constraints violation.\n" << std::endl;
-            std::cout << "max constraint violation: equality: " << eqValues_.array().abs().maxCoeff() << " inequality: " << (-ineqValues_).array().maxCoeff() << std::endl;
-            // which constraints is violated:
-            for (size_t i = 0; i < numEqualityConstraints_; ++i) {
-                if (eqValues_.array().abs()[i] > constraintTol_) {
-                    // std::cout << "equality constraint " << i << " violated, increase penalty to " << mu_matrix_.valuePtr()[i] << std::endl;
-                }
-            }
-
-            for (size_t i = 0; i < numInequalityConstraints_; ++i) {
-                if (-ineqValues_[i] > constraintTol_) {
-                    // std::cout << "inequality constraint " << i << " violated, increase penalty to " << mu_matrix_.valuePtr()[numEqualityConstraints_ + i] << std::endl;
-                }
-            }
-            
-            
+            std::cout << "current merit function converge, examing the constraints violation.\n" << std::endl;
             if (eqValues_.array().abs().maxCoeff() < constraintTol_ && (-ineqValues_).array().maxCoeff() < constraintTol_) {
                 std::cout << "Optimization converged.\n" << std::endl;
-                std::cout << "second order correction count: " << secondOrderCorrectionCount << std::endl;
-                std::cout << "penalty: " << mu_ << std::endl;
                 return true;
             }
             else {
@@ -723,7 +518,7 @@ private:
                     }
 
                     if (max_mu == muMax_) {
-                        std::cout << "penalty maxed out, optimization converged with infeasible solutions.\n" << std::endl;
+                        std::cout << "penalty maxed out, check the solution.\n" << std::endl;
                         return true;
                     }
                     // mu_ = std::min(10 * mu_, muMax_);
@@ -731,25 +526,25 @@ private:
                     for (size_t i = 0; i < numEqualityConstraints_; ++i) {
                         if (eqValues_.array().abs()[i] > weightedTol_*constraintTol_) {
                             mu_matrix_.valuePtr()[i] = std::min(10 * mu_matrix_.valuePtr()[i], muMax_);
-                            std::cout << "equality constraint " << i << " violated, increase penalty to " << mu_matrix_.valuePtr()[i] << std::endl;
+                            // std::cout << "equality constraint " << i << " violated, increase penalty to " << mu_matrix_.valuePtr()[i] << std::endl;
                 
                         }
                     }
                     for (size_t i = 0; i < numInequalityConstraints_; ++i) {
                         if (-ineqValues_[i] > weightedTol_*constraintTol_) {
                             mu_matrix_.valuePtr()[numEqualityConstraints_ + i] = std::min(10 * mu_matrix_.valuePtr()[numEqualityConstraints_ + i], muMax_);
-                            std::cout << "inequality constraint " << i << " violated, increase penalty to " << mu_matrix_.valuePtr()[numEqualityConstraints_ + i] << std::endl;
+                            // std::cout << "inequality constraint " << i << " violated, increase penalty to " << mu_matrix_.valuePtr()[numEqualityConstraints_ + i] << std::endl;
                         }
                     }
                 }
                 else {
                     if (mu_ == muMax_) {
-                        std::cout << "penalty maxed out, optimization converged with infeasible solutions.\n" << std::endl;
+                        std::cout << "penalty maxed out, check the solution.\n" << std::endl;
                         return true;
                     }
+                    // std::cout << "increase penalty" << std::endl;
                     mu_ = std::min(10 * mu_, muMax_);
                 }
-
                 phi_ = evaluateMeritFunction(obj_, eqValues_, ineqValues_);
                 q_mu_0_ = evaluateQuadraticModel(obj_, objJac_, eqValues_, ineqValues_, objHessMat_, eqJacMat_, ineqJacMat_);
                 // trustRegionRadius_ = trustRegionInitRadius_;
@@ -827,9 +622,9 @@ private:
     vector_t objJac_;
     vector_t ones_eq_;
     vector_t ones_ineq_;
-    triplet_vector_t objHessTriplets_;
-    triplet_vector_t eqJacTriplets_;
-    triplet_vector_t ineqJacTriplets_;
+    // triplet_vector_t objHessTriplets_;
+    // triplet_vector_t eqJacTriplets_;
+    // triplet_vector_t ineqJacTriplets_;
     sparse_matrix_t objHessMat_;
     sparse_matrix_t eqJacMat_;
     sparse_matrix_t ineqJacMat_;
@@ -870,6 +665,7 @@ private:
     scalar_t initial_squareNorm_eq_;
     scalar_t initial_squareNorm_ineq_;
     scalar_t weightedMode_;
+    scalar_t secondOrderCorrection_;
     scalar_t weightedTol_;
     size_t offsetV_; //subproblem: offset for the slack variables for the equality constraints.
     size_t offsetW_; //subproblem: offset for the slack variables for the inequality constraints.
@@ -880,13 +676,13 @@ private:
     bool hasInequalityConstraints_;
     triplet_vector_t tripletListFixed_Aeq_;
     triplet_vector_t tripletListFixed_Aineq_;
-    // history
-    std::vector<vector_t> xHistory_;
-    std::vector<scalar_t> meritHistory_;
+    // // history
+    // std::vector<vector_t> xHistory_;
+    // std::vector<scalar_t> meritHistory_;
     std::vector<scalar_t> costHistory_;
-    std::vector<scalar_t> eqViolationHistory_;
-    std::vector<scalar_t> ineqViolationHistory_;
-    std::vector<scalar_t> trustRegionRadiusHistory_;
+    // std::vector<scalar_t> eqViolationHistory_;
+    // std::vector<scalar_t> ineqViolationHistory_;
+    // std::vector<scalar_t> trustRegionRadiusHistory_;
 };
-} // namespace ContactSolver
+} // namespace CRISP
 #endif // SOLVER_INTERFACE_H

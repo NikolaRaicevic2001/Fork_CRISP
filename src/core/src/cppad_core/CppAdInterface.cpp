@@ -2,7 +2,7 @@
 #include <boost/filesystem.hpp>
 #include <iostream>
 
-namespace ContactSolver {
+namespace CRISP {
 CppAdInterface::CppAdInterface(size_t variableDim, const std::string& modelName, const std::string& folderName, const std::string& functionName,
                                const ad_function_t& function, ModelInfoLevel infoLevel, bool regenerateLibrary)
     : variableDim_(variableDim), parameterDim_(0), modelName_(modelName), folderName_(folderName), functionName_(functionName),
@@ -770,4 +770,4 @@ void CppAdInterface::printSparsityMatrixFromTriplets(const triplet_vector_t& tri
 
 
 }
-} // namespace ContactSolver
+} // namespace CRISP

@@ -9,7 +9,7 @@ All the sparse matrix and vector operations within the library are optimized and
 ## Installation Instructions
 Download the source code from the repository:
 ```sh
-    git clone https://github.com/ComputationalRobotics/ContactSolverCpp.git
+    git clone https://github.com/ComputationalRobotics/CRISP-CODE.git
 ```
 ### Prerequisites
 - This library is developed and tested on Ubuntu 20.04.
@@ -21,7 +21,7 @@ Download the source code from the repository:
     - pybind11
     - pkgconfig
     - if you miss any in your system, use `sudo apt install` to install the corresponding library.
-- **Optional**: the library enables data communication with `Matlab` for analyzing and visualizing the solving results.
+
 ### Install Third Party Libraries
 All third party libraries are suggested to be placed in  `./src/third_party` directory.
 #### 1. CppAD
@@ -52,10 +52,6 @@ Install the CppADCodeGen repository:
 
 
 
-5. In container, build and install CppAD:
-    ```sh
-    make install
-    ```
 #### 3. PIQP
 Install the PIQP repository:
 ```sh
@@ -71,23 +67,20 @@ Install the PIQP repository:
 ```sh
 cmake_minimum_required(VERSION 3.21)
 ```
-Do not worry about this, just change the above lines in the CMakeLists.txt file in the PIQP directory to fit your version. For me, it is:
+Do not worry about this, just change the above lines in **all** related CMakeLists.txt file in the PIQP directory to fit your version. For me, it is:
 ```sh
 cmake_minimum_required(VERSION 3.16)
 ```
 
-### Install the ContactSolver
+### Install CRISP
 ```sh
 cd src
 mkdir build
 cmake ..
 make
 ```
-**Note**: remember to change the matlab root in the CMakeLists.txt file to your own path. For me, it is:
-```sh
-set(MATLAB_ROOT "/usr/local/MATLAB/R2024a") # Replace with your MATLAB installation path
-```
-CppAD library generate a .pc complier file, which is used to find the path of the library. It can not be found by findpackage, but can be dealt with properly by pkgconfig. 
+
+**Note**: CppAD library generate a .pc complier file, which is used to find the path of the library. It can not be found by findpackage, but can be dealt with properly by pkgconfig. 
 
 You do not need to care about CppAD codegen, since it is a header-only library and has already been installed to the system default path.
 

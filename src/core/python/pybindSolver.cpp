@@ -4,10 +4,10 @@
 #include <pybind11/functional.h>
 #include "solver_core/SolverInterface.h"
 #include "common/BasicTypes.h"
-#include "common/MatlabHelper.h"
+// #include "common/MatlabHelper.h"
 
 namespace py = pybind11;
-using namespace ContactSolver;
+using namespace CRISP;
 
 // define the module
 PYBIND11_MODULE(pyContactSolver, m) {
@@ -34,8 +34,8 @@ PYBIND11_MODULE(pyContactSolver, m) {
         .def("set_problem_parameters", &SolverInterface::setProblemParameters) // problem related data, related to your obj, constraints, like the tracking reference, terminal states, etc
         .def("set_hyper_parameters", &SolverInterface::setHyperParameters) // hyperparameters for the solver, like max iterations, trust region radius, etc
         .def("solve", &SolverInterface::solve)
-        .def("get_solution", &SolverInterface::getSolution)
-        .def("save_results", &SolverInterface::saveResults);
+        .def("get_solution", &SolverInterface::getSolution);
+        // .def("save_results", &SolverInterface::saveResults);
 
     // expose optimization problem
     py::class_<OptimizationProblem>(m, "OptimizationProblem")
@@ -52,13 +52,13 @@ PYBIND11_MODULE(pyContactSolver, m) {
         .def("get_parameters", &SolverParameters::getParameters);
     
     // expose matlab helper
-    py::class_<MatlabHelper>(m, "MatlabHelper")
-        .def_static("read_variable_from_mat_file", &MatlabHelper::readVariableFromMatFile)
-        .def_static("read_variable_from_mat_file_py", &MatlabHelper::readVariableFromMatFilePy);
+    // py::class_<MatlabHelper>(m, "MatlabHelper")
+    //     .def_static("read_variable_from_mat_file", &MatlabHelper::readVariableFromMatFile)
+    //     .def_static("read_variable_from_mat_file_py", &MatlabHelper::readVariableFromMatFilePy);
 
     // expose ObjectiveFunction
     py::class_<ObjectiveFunction, std::shared_ptr<ObjectiveFunction>>(m, "ObjectiveFunction")
-        .def(py::init<size_t, const std::string&, const std::string&, const std::string&, CppAdInterface::ModelInfoLevel, ObjectiveFunction::SpecifiedFunctionLevel, bool>(),
+        .def(py::init<size_t, const std::string&, const std::string&, const std::string&, bool, CppAdInterface::ModelInfoLevel, ObjectiveFunction::SpecifiedFunctionLevel>(),
             py::arg("variableDim"),
             py::arg("modelName"),
             py::arg("folderName"),
@@ -68,7 +68,7 @@ PYBIND11_MODULE(pyContactSolver, m) {
             py::arg("specifiedFunctionLevel") = ObjectiveFunction::SpecifiedFunctionLevel::NONE
             )
         
-        .def(py::init<size_t, size_t, const std::string&, const std::string&, const std::string&, CppAdInterface::ModelInfoLevel, ObjectiveFunction::SpecifiedFunctionLevel, bool>(),
+        .def(py::init<size_t, size_t, const std::string&, const std::string&, const std::string&, bool, CppAdInterface::ModelInfoLevel, ObjectiveFunction::SpecifiedFunctionLevel>(),
             py::arg("variableDim"),
             py::arg("parameterDim"),
             py::arg("modelName"),
@@ -82,7 +82,7 @@ PYBIND11_MODULE(pyContactSolver, m) {
 
     // expose ConstraintFunction
     py::class_<ConstraintFunction, std::shared_ptr<ConstraintFunction>>(m, "ConstraintFunction")
-        .def(py::init<size_t, const std::string&, const std::string&, const std::string&, CppAdInterface::ModelInfoLevel, ConstraintFunction::SpecifiedFunctionLevel, bool>(),
+        .def(py::init<size_t, const std::string&, const std::string&, const std::string&, bool, CppAdInterface::ModelInfoLevel, ConstraintFunction::SpecifiedFunctionLevel>(),
             py::arg("variableDim"),
             py::arg("modelName"),
             py::arg("folderName"),
@@ -91,7 +91,7 @@ PYBIND11_MODULE(pyContactSolver, m) {
             py::arg("infoLevel") = CppAdInterface::ModelInfoLevel::FIRST_ORDER,
             py::arg("specifiedFunctionLevel") = ConstraintFunction::SpecifiedFunctionLevel::NONE)
         
-        .def(py::init<size_t, size_t, const std::string&, const std::string&, const std::string&, CppAdInterface::ModelInfoLevel, ConstraintFunction::SpecifiedFunctionLevel, bool>(),
+        .def(py::init<size_t, size_t, const std::string&, const std::string&, const std::string&, bool, CppAdInterface::ModelInfoLevel, ConstraintFunction::SpecifiedFunctionLevel>(),
             py::arg("variableDim"),
             py::arg("parameterDim"),
             py::arg("modelName"),
