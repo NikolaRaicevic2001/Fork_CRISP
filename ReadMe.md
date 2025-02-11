@@ -1,19 +1,41 @@
-# CRISP
-This is the official code repository of [**CRISP**](https://computationalrobotics.seas.harvard.edu/CRISP/).
+# CRISP: Robust Contact-Implicit Motion Planning with Sequential Convex Programming
+[**CRISP**](https://computationalrobotics.seas.harvard.edu/CRISP/) is a C++ library developed to efficiently solve nonlinear optimization and optimal control problems with MPCC constraints, using a customized trust region Sequential Convex Programming (SCP) algorithm. 
+## Features
+- **CRISP** leverages [CppAD](https://coin-or.github.io/CppAD/doc/cppad.htm) and its companion, [CppADCodeGen](https://joaoleal.github.io/CppADCodeGen/), to facilitate rapid and efficient computation of necessary values and derivatives. This approach automates the generation of autodiff libraries, requiring users only to define the objective and constraint value functions. These libraries are compiled during the initial run and reused in subsequent operations, optimizing computational efficiency.
 
-**CRISP** is a C++ library designed to efficiently solve nonlinear optimization and optimal control problems with MPCC constraints, using a customized trust region Sequential Convex Programming (SCP) algorithm. The library leverages [CppAD](https://coin-or.github.io/CppAD/doc/cppad.htm) and its companion, [CppADCodeGen](https://joaoleal.github.io/CppADCodeGen/), to facilitate rapid and efficient computation of necessary values and derivatives. This approach automates the generation of autodiff libraries, requiring users only to define the objective and constraint value functions. These libraries are compiled during the initial run and reused in subsequent operations, optimizing computational efficiency.
 
-**CRISP** accommodates both parametric and nonparametric value functions. The parametric support allows users to adjust parameters dynamically and resolve problems without the need for regenerating the autodiff libraries—ideal for applications like Model Predictive Control (MPC), where the tracking reference in the objective function might change frequently.
+- **CRISP** accommodates both parametric and nonparametric value functions. The parametric support allows users to adjust parameters dynamically and resolve problems without the need for regenerating the autodiff libraries—ideal for applications like Model Predictive Control (MPC), where the tracking reference in the objective function might change frequently.
 
-Additionally, a Python interface is available through pybind11, enabling dynamic parameter adjustments and solver execution within a Python environment.
+- Python interface **pyCRISP** is available through pybind11, enabling dynamic parameter adjustments and solver execution within a Python environment.
 
-All the sparse matrix and vector operations within the library are optimized and accelerated by directly memory copying under Eigen Compressed Row Storage (CRS) scheme. The large-scale sparse convex Quadratic Programming (QP) subproblems that arise are tackled using the Proximal Interior Point Quadratic Programming Solver ([PIQP](https://github.com/PREDICT-EPFL/piqp)).   
-## Installation Instructions
+- All the sparse matrix and vector operations within the library are optimized and accelerated by directly memory copying under Eigen Compressed Row Storage (CRS) scheme. The large-scale sparse convex Quadratic Programming (QP) subproblems that arise are tackled using the Proximal Interior Point Quadratic Programming Solver ([PIQP](https://github.com/PREDICT-EPFL/piqp)).   
+<p align="center">
+  <img src="files/pushbot.gif" width = "450" height = "250"/>
+  <img src="files/pushbox.gif" width = "450" height = "250"/>
+  <img src="files/transport.gif" width = "450" height = "250"/>
+  <img src="files/waiterhopper.gif" width = "450" height = "250"/>
+</p>
+
+## Table of Contents
+
+- [Installation Instructions](#1-installation-instructions)
+  - [Prerequisites](#11-prerequisites)
+  - [Install Third Party Libraries](#12-install-third-party-libraries)
+- [Install CRISP](#2-install-crisp)
+  - [Test Examples](#test-examples)
+- [Usage](#3-usage)
+  - [General Workflow](#31-general-workflow)
+  - [C++ Interface](#32-c-interface)
+  - [Python Interface](#33-python-interface)
+- [Citing Our Work](#4-citing-our-work)
+
+
+## 1. Installation Instructions
 Download the source code from the repository:
 ```sh
     git clone https://github.com/ComputationalRobotics/CRISP-CODE.git
 ```
-### Prerequisites
+### 1.1 Prerequisites
 - This library is developed and tested on Ubuntu 20.04/22,04.
 - Install Common Library through `sudo apt install`
     - CMake
@@ -24,9 +46,9 @@ Download the source code from the repository:
     - pkgconfig
     - if you miss any in your system, use `sudo apt install` to install the corresponding library.
 
-### Install Third Party Libraries
+### 1.2 Install Third Party Libraries
 All third party libraries are suggested to be placed in  `./src/third_party` directory.
-#### 1. CppAD
+#### CppAD
 Create and navigate into the `./src/third_party` directory:
 ```sh
     mkdir -p ./src/third_party
@@ -41,7 +63,7 @@ Install the CppAD repository:
     cmake ..
     make install
 ```
-#### 2. CppADCodeGen
+#### CppADCodeGen
 Install the CppADCodeGen repository:
 ```sh
     git clone https://github.com/joaoleal/CppADCodeGen.git
@@ -54,7 +76,7 @@ Install the CppADCodeGen repository:
 
 
 
-#### 3. PIQP
+#### PIQP
 Install the PIQP repository:
 ```sh
     git clone https://github.com/PREDICT-EPFL/piqp.git
@@ -74,7 +96,7 @@ Do not worry about this, just change the above lines in **all** related CMakeLis
 cmake_minimum_required(VERSION 3.16)
 ```
 
-### Install CRISP
+## 2. Install CRISP
 ```sh
 cd src
 mkdir build
@@ -85,7 +107,8 @@ make
 
 You do not need to care about CppAD codegen, since it is a header-only library and has already been installed to the system default path.
 
-### Run Examples
+### Test Examples
+After successfully building the library, you can run the examples to verify the installation.
 ```sh
 # in the build directory, run the following examples: 
 ./examples/pushbot_example
@@ -95,9 +118,8 @@ You do not need to care about CppAD codegen, since it is a header-only library a
 ./examples/hopper_example
 ```
 
-
-
-## Usage
+## 3. Usage
+### 3.1 General Workflow
 This solve adopts the most general optimization problem format: 
 $$
 \min_x f(x) 
@@ -114,6 +136,7 @@ $$c_i(x) = 0, \quad i \in \mathcal{E} $$
 4. Initialize the solver with the initial guess and solve the problem.
 5. Retrieve the solution.
 
+### 3.2 C++ Interface
 Let's go through how the solver works with the pushbot example ``src/examples/pushbot/cpp/SolvePushbot.cpp``.
 1. Define the objective function and constraints using the ``ad_function_with_param_t`` or ``ad_function_t ``. 
 
@@ -217,8 +240,8 @@ or simply delete the files such that the system will not find the library and re
 ```
 
 
-## Python Interface
-Make sure you have gone through the C++ workflow and have the autodiff libraries generated.
+### 3.3 Python Interface
+Make sure you have gone through the C++ workflow and have the autodiff libraries generated. Since the autodifferentiation functions can be defined in parametric ways, currently we adopt the way to generate the library in C++ once and develop your code in python for all. Future development would provide a way to define the functions in python directly combining library like CASADI.
 ```cpp
     std::string problemName = "PushbotSwingUp";
     std::string folderName = "model";
@@ -318,3 +341,13 @@ solution = solver.get_solution()
 
 ```
 
+## 4. Citing Our Work
+If you use **CRISP** in your research, please consider citing our work:
+```bibtex
+@article{li2025surprising,
+  title={On the Surprising Robustness of Sequential Convex Optimization for Contact-Implicit Motion Planning},
+  author={Li, Yulin and Han, Haoyu and Kang, Shucheng and Ma, Jun and Yang, Heng},
+  journal={arXiv preprint arXiv:2502.01055},
+  year={2025}
+}
+```

@@ -50,10 +50,10 @@ target_link_libraries(CRISP
 # pybind11_add_module(pybind_test python/testPybind.cpp)
 # install(TARGETS pybind_test DESTINATION ${CMAKE_SOURCE_DIR}/python)
 
-pybind11_add_module(pyContactSolver python/pybindSolver.cpp)
+pybind11_add_module(pyCRISP python/pybindSolver.cpp)
 # Linking the static library
-target_link_libraries(pyContactSolver PRIVATE CRISP)
+target_link_libraries(pyCRISP PRIVATE CRISP)
 # Ensure position-independent code for the shared module
-set_target_properties(CRISP pyContactSolver PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set_target_properties(CRISP pyCRISP PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 

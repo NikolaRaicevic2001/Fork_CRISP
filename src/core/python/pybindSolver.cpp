@@ -10,7 +10,7 @@ namespace py = pybind11;
 using namespace CRISP;
 
 // define the module
-PYBIND11_MODULE(pyContactSolver, m) {
+PYBIND11_MODULE(pyCRISP, m) {
     m.doc() = "python interface for ContactSolver"; // optional module docstring
     py::enum_<CppAdInterface::ModelInfoLevel>(m, "ModelInfoLevel")
         .value("FIRST_ORDER", CppAdInterface::ModelInfoLevel::FIRST_ORDER)
