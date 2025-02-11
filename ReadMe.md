@@ -2,25 +2,26 @@
 [**CRISP**](https://computationalrobotics.seas.harvard.edu/CRISP/) is a C++ library developed to efficiently solve contact-implicit motion planning problems, using a customized trust region Sequential Convex Programming (SCP) algorithm.
 
 **CRISP** computes entirely new contact sequences from naive and even all-zero initializations.
-<p align="center">
+
+<div align="center">
   <h3>Hopper and Waiter</h3>
   <img src="files/waiterhopper.gif" width="600" height="300"/>
-</p>
+</div>
 
-<p align="center">
+<div align="center">
   <h3>PushBox</h3>
   <img src="files/pushbox.gif" width="600" height="300"/>
-</p>
+</div>
 
-<p align="center">
+<div align="center">
   <h3>Transport</h3>
   <img src="files/transport.gif" width="600" height="300"/>
-</p>
+</div>
 
-<p align="center">
+<div align="center">
   <h3>PushBot</h3>
   <img src="files/pushbot.gif" width="600" height="300"/>
-</p>
+</div>
 
 ## Features
 - **CRISP** leverages [CppAD](https://coin-or.github.io/CppAD/doc/cppad.htm) and its companion, [CppADCodeGen](https://joaoleal.github.io/CppADCodeGen/), to facilitate rapid and efficient computation of necessary values and derivatives. This approach automates the generation of autodiff libraries, requiring users only to define the objective and constraint value functions. These libraries are compiled during the initial run and reused in subsequent operations, optimizing computational efficiency.
