@@ -121,15 +121,16 @@ After successfully building the library, you can run the examples to verify the 
 ## 3. Usage
 ### 3.1 General Workflow
 This solve adopts the most general optimization problem format: 
+
 $$
-\min_x f(x) 
+\begin{aligned}
+\min_{x} \quad & J(x) \\
+\text {s.t.}\quad & c_i(x) = 0, \quad i \in \mathcal{E} \\
+& c_i(x) \ge 0, \quad i \in \mathcal{I} \\
+\end{aligned}
 $$
 
-subject to:
-$$c_i(x) = 0, \quad i \in \mathcal{E} $$
- $$c_i(x) \ge 0, \quad i \in \mathcal{I}$$
-
- In general, the workflow for defining your own problem and solving it with the ContactSolver is simple:
+The objective $J(x)$ is convex, while the $c(x)$ are general nonlinear nonconvex constraints. The workflow for defining your own problem and solving it with the **CRISP** is simple:
 1. Define the objective function and constraints.
 2. Create the ``OptimizationProblem`` , add the objective and constraints to the problem through ``addObjective``, ``addEqualityConstraint``, and ``addInequalityConstraint``.
 3. Create the ``SolverInterface`` with the defined optimization problem.
@@ -270,7 +271,7 @@ import os
 import sys
 # add the generated python bindings to the path, defalut path is path/to/build/core
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../build/core')) # Add the path to generated python bindings
-import pyContactSolver
+import pyCRISP
 
 # In the python example, the workflow is similar to the C++ example. 
 # Except that we don't need to specify the function handles (obj, constraints) as we assume the autodifferentiation has already been generated with the following naming convention:
@@ -290,15 +291,15 @@ N = 100
 variableNum = N * (num_state + num_control)
 problemName = "PushbotSwingUp"
 folderName = "model"
-problem = pyContactSolver.OptimizationProblem(N * (num_state + num_control), "PushbotSwingUp")
+problem = pyCRISP.OptimizationProblem(N * (num_state + num_control), "PushbotSwingUp")
 
 
 # 2. Create objective and constraints objects. In py interface, we don't need to specify the function handles as we assume the autodifferentiation has already been generated
 # If the function is parameterized, the second argument should be the number of parameters
-obj = pyContactSolver.ObjectiveFunction(variableNum, num_state, problemName, folderName, "pushbotObjective")
-dynamic = pyContactSolver.ConstraintFunction(variableNum, problemName, folderName, "pushBotDynamicConstraints")
-contact = pyContactSolver.ConstraintFunction(variableNum, problemName, folderName, "pushBotContactConstraints")
-initial = pyContactSolver.ConstraintFunction(variableNum, num_state, problemName, folderName, "pushBotInitialConstraints")
+obj = pyCRISP.ObjectiveFunction(variableNum, num_state, problemName, folderName, "pushbotObjective")
+dynamic = pyCRISP.ConstraintFunction(variableNum, problemName, folderName, "pushBotDynamicConstraints")
+contact = pyCRISP.ConstraintFunction(variableNum, problemName, folderName, "pushBotContactConstraints")
+initial = pyCRISP.ConstraintFunction(variableNum, num_state, problemName, folderName, "pushBotInitialConstraints")
 
 # 3. Add obj and constraints to the problem
 problem.add_objective(obj)
@@ -316,8 +317,8 @@ x_initial_states[:] = x_initial_guess[:num_state]
 
 
 # 5. Initialize the solver hyperparameters, and you can change the hyperparameters here or after 
-params = pyContactSolver.SolverParameters()
-solver = pyContactSolver.SolverInterface(problem, params)
+params = pyCRISP.SolverParameters()
+solver = pyCRISP.SolverInterface(problem, params)
 
 # set the parameters for those parametric functions: mandatory
 solver.set_problem_parameters("pushbotObjective", x_final_states) # the objective parameters are the terminal states for calculating the terminal cost
