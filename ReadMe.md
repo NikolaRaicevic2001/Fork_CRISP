@@ -1,5 +1,14 @@
 # CRISP: Robust Contact-Implicit Motion Planning with Sequential Convex Programming
-[**CRISP**](https://computationalrobotics.seas.harvard.edu/CRISP/) is a C++ library developed to efficiently solve nonlinear optimization and optimal control problems with MPCC constraints, using a customized trust region Sequential Convex Programming (SCP) algorithm. 
+[**CRISP**](https://computationalrobotics.seas.harvard.edu/CRISP/) is a C++ library developed to efficiently solve contact-implicit motion planning problems, using a customized trust region Sequential Convex Programming (SCP) algorithm.
+
+**CRISP** computes entirely new contact sequences from naive and even all-zero initializations.
+<p align="center">
+  <img src="files/pushbot.gif" width = "400" height = "200"/>
+  <img src="files/pushbox.gif" width = "400" height = "200"/>
+  <img src="files/transport.gif" width = "400" height = "200"/>
+  <img src="files/waiterhopper.gif" width = "400" height = "200"/>
+</p>
+
 ## Features
 - **CRISP** leverages [CppAD](https://coin-or.github.io/CppAD/doc/cppad.htm) and its companion, [CppADCodeGen](https://joaoleal.github.io/CppADCodeGen/), to facilitate rapid and efficient computation of necessary values and derivatives. This approach automates the generation of autodiff libraries, requiring users only to define the objective and constraint value functions. These libraries are compiled during the initial run and reused in subsequent operations, optimizing computational efficiency.
 
@@ -9,12 +18,7 @@
 - Python interface **pyCRISP** is available through pybind11, enabling dynamic parameter adjustments and solver execution within a Python environment.
 
 - All the sparse matrix and vector operations within the library are optimized and accelerated by directly memory copying under Eigen Compressed Row Storage (CRS) scheme. The large-scale sparse convex Quadratic Programming (QP) subproblems that arise are tackled using the Proximal Interior Point Quadratic Programming Solver ([PIQP](https://github.com/PREDICT-EPFL/piqp)).   
-<p align="center">
-  <img src="files/pushbot.gif" width = "400" height = "225"/>
-  <img src="files/pushbox.gif" width = "400" height = "225"/>
-  <img src="files/transport.gif" width = "400" height = "225"/>
-  <img src="files/waiterhopper.gif" width = "400" height = "225"/>
-</p>
+
 
 ## Table of Contents
 
