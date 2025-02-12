@@ -140,7 +140,7 @@ After successfully building the library, you can run the examples to verify the 
 ./examples/waiter_example
 ./examples/hopper_example
 ```
-
+Feel free to try different hyperparameters, and the weighted mode on these or your own problems. For local solver, the hyperparameters are important for the numerical performance. 
 ## 3. Usage
 ### 3.1 General Workflow
 This solve adopts the most general optimization problem format: 
