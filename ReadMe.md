@@ -4,12 +4,17 @@
 **CRISP** computes entirely new contact sequences from naive and even all-zero initializations.
 
 <div align="center">
-  <h3>Hopper and Waiter</h3>
-  <img src="files/waiterhopper.gif" width="600" height="300"/>
+  <h3>Waiter</h3>
+  <img src="files/waiter.gif" width="600" height="300"/>
 </div>
 
 <div align="center">
-  <h3>PushBox</h3>
+  <h3>Hopper</h3>
+  <img src="files/hopper.gif" width="600" height="300"/>
+</div>
+
+<div align="center">
+  <h3>Push Box</h3>
   <img src="files/pushbox.gif" width="600" height="300"/>
 </div>
 
@@ -19,7 +24,7 @@
 </div>
 
 <div align="center">
-  <h3>PushBot</h3>
+  <h3>Cartpole with Soft Walls</h3>
   <img src="files/pushbot.gif" width="600" height="300"/>
 </div>
 
