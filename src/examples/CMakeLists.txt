@@ -1,3 +1,4 @@
+# build some examples
 add_executable(pushbot_example pushbot/cpp/SolvePushbot.cpp)
 
 target_link_libraries(pushbot_example
@@ -25,5 +26,11 @@ target_link_libraries(cartTransp_example
 add_executable(waiter_example waiter/cpp/SolveWaiter.cpp)
 
 target_link_libraries(waiter_example
+  CRISP
+)
+
+add_executable(pushT_example pushT/SolvePushT.cpp)
+
+target_link_libraries(pushT_example
   CRISP
 )
