@@ -85,6 +85,6 @@ def frame(k):
     return box, center
 
 ani = FuncAnimation(fig2, frame, frames=N, interval=dt*1000, blit=True)
-ani.save(f"results/animation_{example_name}_{gradient_method}.gif", writer='pillow', fps=50, dpi=100)
+ani.save(f"results/animation_{example_name}_{gradient_method}.gif", writer='pillow', fps=1/dt, dpi=100)
 
 plt.show()

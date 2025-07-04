@@ -14,6 +14,11 @@ target_link_libraries(pushboxsdf_example
   CRISP
 )
 
+add_executable(pushcirclesdf_example pushcircle/SolvePushcircleSDF.cpp)
+target_link_libraries(pushcirclesdf_example
+  CRISP
+)
+
 add_executable(hopper_example 2dHopper/cpp/Solve2DHopper.cpp)
 target_link_libraries(hopper_example
   CRISP

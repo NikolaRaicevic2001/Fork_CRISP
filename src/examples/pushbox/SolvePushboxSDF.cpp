@@ -6,7 +6,7 @@
 
 using namespace CRISP;
 
-// Define model model parameters for pushbox
+// Define model parameters for pushbox
 const scalar_t a = 0.5;
 const scalar_t b = 0.25;
 const scalar_t m = 1;
@@ -106,6 +106,7 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
 
         auto g_i = sdfBox(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), Eigen::Matrix<ad_scalar_t,2,1>(a,b));
         auto n_i = sdfBox_Grad(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), Eigen::Matrix<ad_scalar_t,2,1>(a,b));
+        
         ad_scalar_t c = cos(th_i),  s = sin(th_i);
         ad_scalar_t Fx = lam_i * (  c*n_i.x() - s*n_i.y() );
         ad_scalar_t Fy = lam_i * (  s*n_i.x() + c*n_i.y() );
