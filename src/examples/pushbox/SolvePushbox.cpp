@@ -55,7 +55,6 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
 };
 
 // contact implicit constraints for pushbox
-
 ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
     y.resize((N - 1) * 12);
     for (size_t i = 0; i < N - 1; ++i) {
@@ -107,9 +106,7 @@ ad_function_t pushboxContactSingleForceConstraints = [](const ad_vector_t& x, ad
 // initial constraints
 ad_function_with_param_t pushboxInitialConstraints = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
     y.resize(3);
-    y.segment(0, 3) << x[0] - p[0],
-                    x[1] - p[1],
-                    x[2] - p[2];
+    y.segment(0, 3) << x[0] - p[0], x[1] - p[1], x[2] - p[2];
 };
 
 // cost function for pushbox
@@ -144,9 +141,7 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
         if (i == N - 1) {
             ad_vector_t tracking_error(num_state);
 
-            tracking_error << px_i - p[0],
-                            py_i - p[1],
-                            theta_i - p[2];
+            tracking_error << px_i - p[0], py_i - p[1], theta_i - p[2];
             tracking_cost += tracking_error.transpose() * Q * tracking_error;
 
         }
@@ -208,7 +203,7 @@ int main(){
         solver.solve();
         xOptimal = solver.getSolution();
 
-        std::ofstream log(PROJECT_ROOT / "src/examples/pushbox/results_pushbox.csv");
+        std::ofstream log(PROJECT_ROOT / "src/examples/pushbox/results/results_pushbox.csv");
         for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
         log.close();                              
 

@@ -15,9 +15,9 @@ const scalar_t g = 9.8;
 const scalar_t r = sqrt(a * a + b * b);
 const scalar_t c = 0.4;
 const scalar_t dt = 0.02;
-const size_t N = 100; // number of time steps
-const size_t num_state = 3;        // STATE  (3) : [px, py, θ]
-const size_t num_control = 3;      // CONTROL (3) : [cx, cy, λ ]
+const size_t N = 100;               // number of time steps
+const size_t num_state = 3;         // STATE  (3) : [px, py, θ]
+const size_t num_control = 3;       // CONTROL (3) : [cx, cy, λ ]
 
 // Global variables for the problem
 static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();    
@@ -245,7 +245,7 @@ int main(){
         solver.solve();
         xOptimal = solver.getSolution();
 
-        std::ofstream log(PROJECT_ROOT / "src/examples/pushbox/results_pushbox_sdf.csv");
+        std::ofstream log(PROJECT_ROOT / "src/examples/pushbox/results/results_pushbox_sdf.csv");
         for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
         log.close();                              
 
