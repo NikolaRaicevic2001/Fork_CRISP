@@ -12,11 +12,15 @@ b = 0.25                        # half height of the box
 dt = 0.02                       # time step (20 ms) 
 N           = 100               # number of time steps
 num_state   = 3                 # STATE  (3) : [px, py, θ]
-example_name = "pushbox"    # "pushbox" or "pushbox_sdf"
+example_name = "pushbox_sdf"    # "pushbox" or "pushbox_sdf"
+gradient_method = "None"
 if example_name == "pushbox":
     num_control = 6             # CONTROL (6) : [cx, cy, λ1-λ4, λ5]  (cx, cy plotted)
+    csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}.csv" 
 elif example_name == "pushbox_sdf":
+    gradient_method = "AD"      # gradient method for SDF: "AD" or "FD"
     num_control = 3             # CONTROL (3) : [cx, cy, λ]  (cx, cy plotted)
+    csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}_{gradient_method}.csv" 
 
 # Goal configuration (in world frame)
 num_segments    = 18            # number of segments for the goal circle
@@ -24,7 +28,6 @@ theta_seg       = 12 * 2 * np.pi / num_segments
 goal_state      = np.array([3 * np.cos(theta_seg), 3 * np.sin(theta_seg), theta_seg])  
 
 # ---------------- load data from CSV --------------------
-csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}.csv" 
 flat   = np.loadtxt(csv_file, dtype=float)          # 900 × 1
 data   = flat.reshape(N, num_state + num_control)
 
@@ -49,7 +52,7 @@ ax[1].set_ylabel("contact point")
 ax[1].legend()
 
 fig.tight_layout()
-fig.savefig(f"results/figures_{example_name}.png", dpi=100, bbox_inches='tight')
+fig.savefig(f"results/figures_{example_name}_{gradient_method}.png", dpi=100, bbox_inches='tight')
 
 # ---------- SIMPLE CARTOON ANIMATION ----------
 fig2, ax2 = plt.subplots(figsize=(7, 5))
@@ -82,6 +85,6 @@ def frame(k):
     return box, center
 
 ani = FuncAnimation(fig2, frame, frames=N, interval=dt*1000, blit=True)
-ani.save(f"results/animation_{example_name}.gif", writer='pillow', fps=50, dpi=100)
+ani.save(f"results/animation_{example_name}_{gradient_method}.gif", writer='pillow', fps=50, dpi=100)
 
 plt.show()

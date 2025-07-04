@@ -27,8 +27,7 @@ static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__
 
 /* ---------- exact SDF of an axis–aligned box -------------------- */
 template<class T>
-inline T sdfBox(const Eigen::Matrix<T,2,1>& p,
-                const Eigen::Matrix<T,2,1>& half)
+inline T sdfBox(const Eigen::Matrix<T,2,1>& p, const Eigen::Matrix<T,2,1>& half)
 {
     T dx = CppAD::abs(p.x()) - half.x();
     T dy = CppAD::abs(p.y()) - half.y();
@@ -45,20 +44,9 @@ inline T sdfBox(const Eigen::Matrix<T,2,1>& p,
     return outside + inside;
 }
 
-// template <class T>
-// inline T sdfBox(const Eigen::Matrix<T,2,1>& p, const Eigen::Matrix<T,2,1>& half)
-// {
-//     Eigen::Matrix<T,2,1> d = p.cwiseAbs() - half;           // abs(p) – b
-//     T outside  = d.cwiseMax(T(0)).norm();                   // Euclidean outside
-//     T inside   = std::min(std::max(d.x(), d.y()), T(0));    // <- or 0
-//     return outside + inside;                                // exact SDF
-// }
-
-// SDF *and* numerical gradient
+// gradient of the SDF using analytical formula
 template<class T>
-inline Eigen::Matrix<T,2,1>
-sdfBox_Grad(const Eigen::Matrix<T,2,1>& p,
-             const Eigen::Matrix<T,2,1>& half)
+inline Eigen::Matrix<T,2,1> sdfBox_Grad(const Eigen::Matrix<T,2,1>& p, const Eigen::Matrix<T,2,1>& half)
 {
     /* distances to the box faces --------------------------------- */
     T dx = CppAD::abs(p.x()) - half.x();
@@ -84,20 +72,20 @@ sdfBox_Grad(const Eigen::Matrix<T,2,1>& p,
     return n;
 }
 
-// template<class T>
-// Eigen::Matrix<T,2,1> sdfBox_Grad(const Eigen::Matrix<T,2,1>& p, const Eigen::Matrix<T,2,1>& half, T eps = T(1e-6))
-// {
-//     Eigen::Matrix<T,2,1> g;
-//     for (int i=0;i<2;++i)
-//     {
-//         Eigen::Matrix<T,2,1> pe = p;
-//         pe(i) += eps;
-//         T fwd  = sdfBox(pe, half);
-//         T base = sdfBox(p , half);
-//         g(i) = (fwd - base) / eps;
-//     }
-//     return g.normalized();
-// }
+// numerical gradient of the SDF using finite differences
+template<class T>
+Eigen::Matrix<T,2,1> sdfBox_FDGrad(const Eigen::Matrix<T,2,1>& p, const Eigen::Matrix<T,2,1>& half, T eps = T(1e-6))
+{
+    Eigen::Matrix<T,2,1> g;
+    auto f0 = sdfBox(p, half);
+    for (int k=0; k<2; ++k)
+    {
+        Eigen::Matrix<T,2,1> ph = p;
+        ph(k) += eps;
+        g(k) = (sdfBox(ph, half) - f0) / eps;
+    }
+    return g / CppAD::sqrt(g.squaredNorm());              
+}
 
 // define the dynamics constraints
 ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
@@ -245,7 +233,7 @@ int main(){
         solver.solve();
         xOptimal = solver.getSolution();
 
-        std::ofstream log(PROJECT_ROOT / "src/examples/pushbox/results/results_pushbox_sdf.csv");
+        std::ofstream log(PROJECT_ROOT / "src/examples/pushbox/results/results_pushbox_sdf_AD.csv");
         for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
         log.close();                              
 
