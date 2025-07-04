@@ -1,9 +1,12 @@
 #include "solver_core/SolverInterface.h"
 // #include "common/MatlabHelper.h"
-#include <chrono>
-#include <fstream>
-#include <string>
 #include "math.h"
+
+#include <chrono>
+#include <string>
+#include <fstream>
+#include <iostream>      
+#include <filesystem>
 
 using namespace CRISP;
 
@@ -20,6 +23,11 @@ const double d1 = 1.0;
 const double d2 = 1.0;
 const double k1 = 200.0;
 const double k2 = 200.0;
+
+
+// Global variables for the problem
+static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path().parent_path();    
+const std::filesystem::path txtFileName = PROJECT_ROOT / "src" / "examples" / "pushbot" / "initial_guess_pushbot_example.txt";
 
 // allstates = [x,x_dot,theta,theta_dot,u,lamda1,lamda2]
 // define the objective function handle where the final desired state is the parameter
@@ -170,6 +178,8 @@ vector_t loadEigenVectorFromTextFile(const std::string& fileName) {
 }
 
 int main() {
+    std::cout << "Project Root Path: " << PROJECT_ROOT << std::endl;          
+
     size_t variableNum = N * (num_state + num_control);
     std::string problemName = "PushbotSwingUp";
     std::string folderName = "model";
@@ -204,8 +214,7 @@ int main() {
     // solver.setHyperParameters("verbose", vector_t::Constant(1, 1));
     
     // read initial guess, change it to your own path
-    std::string txtFileName = "/home/workspace/src/examples/pushbot/initial_guess_pushbot_example.txt";
-    xInitialGuess = loadEigenVectorFromTextFile(txtFileName);
+    xInitialGuess = loadEigenVectorFromTextFile(txtFileName.string());
     xInitialStates << xInitialGuess[0], xInitialGuess[1], xInitialGuess[2], xInitialGuess[3];
     // initialize the solver interface with the problem
     xFinalStates << 0,0,0,0;

@@ -1,9 +1,14 @@
-import numpy as np
 import os
 import sys
+import pathlib
+import numpy as np
+
 # add the generated python bindings to the path, defalut path is path/to/build/core
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../build/core')) # Add the path to generated python bindings
 import pyCRISP
+
+# Add the path to the project
+project_root = pathlib.Path(__file__).parent.parent.parent.parent.parent
 
 # In the python example, the workflow is similar to the C++ example. 
 # Except that we don't need to specify the function handles (obj, constraints) as we assume the autodifferentiation has already been generated with the following naming convention:
@@ -44,7 +49,7 @@ x_initial_states = np.zeros(num_state)
 x_final_states = np.array([0, 0, 0, 0])
 
 # Read initial guess from a file, you can also set it to your own test values.
-x_initial_guess = np.loadtxt('/home/workspace/src/examples/pushbot/initial_guess_pushbot_example.txt')
+x_initial_guess = np.loadtxt(os.path.join(project_root, "src", "examples", "pushbot", "initial_guess_pushbot_example.txt"))
 x_initial_states[:] = x_initial_guess[:num_state]
 
 

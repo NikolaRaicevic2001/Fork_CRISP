@@ -1,0 +1,5 @@
+/src/build/
+/src/third_party/
+*.so
+*.a
+.vscode/

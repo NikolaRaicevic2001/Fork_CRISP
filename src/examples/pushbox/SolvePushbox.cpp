@@ -1,6 +1,8 @@
 #include "solver_core/SolverInterface.h"
 // #include "common/MatlabHelper.h"
 #include <chrono>
+#include <filesystem>
+
 #include "math.h"
 
 using namespace CRISP;
@@ -17,6 +19,9 @@ const scalar_t dt = 0.02;
 const size_t N = 100; // number of time steps
 const size_t num_state = 3;
 const size_t num_control = 6;
+
+// Global variables for the problem
+static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();    
 
 // define the dynamics constraints
 ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
@@ -202,6 +207,11 @@ int main(){
         solver.initialize(xInitialGuess);
         solver.solve();
         xOptimal = solver.getSolution();
+
+        std::ofstream log(PROJECT_ROOT / "src/examples/pushbox/results_pushbox.csv");
+        for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
+        log.close();                              
+
     }
 
 
