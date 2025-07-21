@@ -5,6 +5,7 @@ import numpy as np
 
 # add the generated python bindings to the path, defalut path is path/to/build/core
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../build/core')) # Add the path to generated python bindings
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../../build/'))     # Add the path to models
 import pyCRISP
 
 # Add the path to the project
@@ -18,7 +19,6 @@ project_root = pathlib.Path(__file__).parent.parent.parent.parent.parent
 # If your problem itself is not changed (the dynamics or constraints themself), the autodifferentiation function library would be loaded automatically and only once. And then you are able to set different problem parameters and solver hyperparameters in the python interface for resolve the problem.
 # The following example shows how we set up and solve the pushbot swing up problem using the python interface.
 
-
 num_state = 4
 num_control = 3
 N = 100
@@ -29,7 +29,6 @@ variableNum = N * (num_state + num_control)
 problemName = "PushbotSwingUp"
 folderName = "model"
 problem = pyCRISP.OptimizationProblem(N * (num_state + num_control), "PushbotSwingUp")
-
 
 # 2. Create objective and constraints objects. In py interface, we don't need to specify the function handles as we assume the autodifferentiation has already been generated
 # If the function is parameterized, the second argument should be the number of parameters

@@ -104,7 +104,7 @@ ad_function_t pushboxContactSingleForceConstraints = [](const ad_vector_t& x, ad
 };
 
 // initial constraints
-ad_function_with_param_t pushboxInitialConstraints = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
+    ad_function_with_param_t pushboxInitialConstraints = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
     y.resize(3);
     y.segment(0, 3) << x[0] - p[0], x[1] - p[1], x[2] - p[2];
 };

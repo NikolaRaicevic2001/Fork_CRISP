@@ -16,7 +16,7 @@ gradient_method  = "FD"         # "AD" or "FD" – only used in file-name
 csv_file = ( Path(__file__).resolve().parent / "results" / f"results_pushcircle_sdf_{gradient_method}.csv" )
 
 # goal configuration (in world frame)
-goal_state   = np.array([-0.5, -1.0])  
+goal_state   = np.array([-1.0, -0.25])  
 
 # ──────── LOAD CSV ────────────────────────────────────────────────────────
 flat  = np.loadtxt(csv_file, dtype=float)

@@ -1,0 +1,16 @@
+/home/nikola/Workspace_Research/External/CRISP_env/CRISP-CODE/src/CMakeFiles/edit_cache.dir
+/home/nikola/Workspace_Research/External/CRISP_env/CRISP-CODE/src/CMakeFiles/rebuild_cache.dir
+/home/nikola/Workspace_Research/External/CRISP_env/CRISP-CODE/src/core/CMakeFiles/CRISP.dir
+/home/nikola/Workspace_Research/External/CRISP_env/CRISP-CODE/src/core/CMakeFiles/pyCRISP.dir
+/home/nikola/Workspace_Research/External/CRISP_env/CRISP-CODE/src/core/CMakeFiles/edit_cache.dir
+/home/nikola/Workspace_Research/External/CRISP_env/CRISP-CODE/src/core/CMakeFiles/rebuild_cache.dir
+/home/nikola/Workspace_Research/External/CRISP_env/CRISP-CODE/src/examples/CMakeFiles/pushbot_example.dir
+/home/nikola/Workspace_Research/External/CRISP_env/CRISP-CODE/src/examples/CMakeFiles/pushbox_example.dir
+/home/nikola/Workspace_Research/External/CRISP_env/CRISP-CODE/src/examples/CMakeFiles/pushboxsdf_example.dir
+/home/nikola/Workspace_Research/External/CRISP_env/CRISP-CODE/src/examples/CMakeFiles/pushcirclesdf_example.dir
+/home/nikola/Workspace_Research/External/CRISP_env/CRISP-CODE/src/examples/CMakeFiles/hopper_example.dir
+/home/nikola/Workspace_Research/External/CRISP_env/CRISP-CODE/src/examples/CMakeFiles/cartTransp_example.dir
+/home/nikola/Workspace_Research/External/CRISP_env/CRISP-CODE/src/examples/CMakeFiles/waiter_example.dir
+/home/nikola/Workspace_Research/External/CRISP_env/CRISP-CODE/src/examples/CMakeFiles/pushT_example.dir
+/home/nikola/Workspace_Research/External/CRISP_env/CRISP-CODE/src/examples/CMakeFiles/edit_cache.dir
+/home/nikola/Workspace_Research/External/CRISP_env/CRISP-CODE/src/examples/CMakeFiles/rebuild_cache.dir

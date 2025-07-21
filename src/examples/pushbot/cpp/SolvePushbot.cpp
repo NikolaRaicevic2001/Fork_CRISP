@@ -69,8 +69,6 @@ ad_function_with_param_t pushbotObjective = [](const ad_vector_t& x, const ad_ve
     y(0) = tracking_cost + control_cost;
 };
 
-
-
 // Dynamic constraints
 ad_function_t pushBotDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
     y.resize((N - 1) * num_state);
@@ -147,7 +145,7 @@ void saveEigenVectorToTextFile(const Eigen::VectorXd& vec, const std::string& fi
     for (int i = 0; i < vec.size(); ++i) {
         outFile << vec[i] << "\n";
     }
-    
+
     outFile.close();
 }
 
@@ -179,7 +177,6 @@ vector_t loadEigenVectorFromTextFile(const std::string& fileName) {
 
 int main() {
     std::cout << "Project Root Path: " << PROJECT_ROOT << std::endl;          
-
     size_t variableNum = N * (num_state + num_control);
     std::string problemName = "PushbotSwingUp";
     std::string folderName = "model";
@@ -202,7 +199,6 @@ int main() {
     vector_t xFinalStates(num_state);
     vector_t xInitialGuess(variableNum);
     vector_t xOptimal(variableNum);
-
 
     SolverParameters params;
     SolverInterface solver(pushbotProblem, params);

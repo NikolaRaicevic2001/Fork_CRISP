@@ -194,7 +194,7 @@ int main(){
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-3));
     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
     // solver.setHyperParameters("verbose", vector_t::Constant(1, 1));  
-        xFinalStates << -0.5, -1.0;
+        xFinalStates << -1.0, -0.25;
         solver.setProblemParameters("pushcircleObjective", xFinalStates);
         solver.initialize(xInitialGuess);
         solver.solve();
