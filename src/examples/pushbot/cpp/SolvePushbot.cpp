@@ -12,7 +12,7 @@ using namespace CRISP;
 
 // Define model model parameters for pushbot
 const double dt = 0.02;
-const size_t N = 100; // number of time steps
+const size_t N = 100;           // number of time steps
 const size_t num_state = 4;  
 const size_t num_control = 3;
 const double mc = 1.0;

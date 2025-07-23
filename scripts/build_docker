@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && cd ../ && pwd )"
+
+docker build -t crisp:latest -f ${ROOT_DIR}/docker/Dockerfile $ROOT_DIR

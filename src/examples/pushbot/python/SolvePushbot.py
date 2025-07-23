@@ -1,30 +1,28 @@
-import os
-import sys
-import pathlib
-import numpy as np
-
-# add the generated python bindings to the path, defalut path is path/to/build/core
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../build/core')) # Add the path to generated python bindings
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../build/'))     # Add the path to models
-import pyCRISP
-
-# Add the path to the project
-project_root = pathlib.Path(__file__).parent.parent.parent.parent.parent
-
 # In the python example, the workflow is similar to the C++ example. 
 # Except that we don't need to specify the function handles (obj, constraints) as we assume the autodifferentiation has already been generated with the following naming convention:
 # problem name: "PushbotSwingUp"; folder name: "model"; function name: "pushbotObjective", "pushBotDynamicConstraints", "pushBotContactConstraints", "pushBotInitialConstraints".
-# the obj and constraints functions can be defined in both parametric and non-parametric ways. The parametric way is useful for dynamically adjusting problem parameter like the tracking ref, terminal states.
+# the obj and constraints functions can be defined in both parametric and non-parametric ways. The parametric way is useful for dynamically adjusting problem parameter like the tracking ref, 
+# terminal states. If your problem itself is not changed (the dynamics or constraints themself), the autodifferentiation function library would be loaded automatically and only once. 
+# And then you are able to set different problem parameters and solver hyperparameters in the python interface for resolve the problem. The following example shows how we set up and 
+# solve the pushbot swing up problem using the python interface.
 
-# If your problem itself is not changed (the dynamics or constraints themself), the autodifferentiation function library would be loaded automatically and only once. And then you are able to set different problem parameters and solver hyperparameters in the python interface for resolve the problem.
-# The following example shows how we set up and solve the pushbot swing up problem using the python interface.
+# Import necessary libraries
+import numpy as np
+import os
+import sys
 
+from pathlib import Path
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../../build/core')) # Add the path to generated python bindings
+project_root = Path(__file__).resolve().parent.parent.parent.parent.parent      # Adjust the path to your project root
+import pyCRISP
+
+# Set the hyperparameters for the pushbot swing up problem (has to match the C++ example)
 num_state = 4
 num_control = 3
 N = 100
 
-# 1. Create optimization problem. 
-# Notice that the problem name, folder name, and function name should be the same as the ones in the model file for the system to load the autodifferentiation functions
+# 1. Create optimization problem: The problem name, folder name, and function name should be the same as the ones in the model file for the system to load the autodifferentiation functions
 variableNum = N * (num_state + num_control)
 problemName = "PushbotSwingUp"
 folderName = "model"
@@ -45,22 +43,23 @@ problem.add_equality_constraint(initial)
 
 # 4. Set problem parameters, as the functions can be defined in both parametric and non-parametric ways, the problem parameters can also be adjusted dynamically after creating the solver object.
 x_initial_states = np.zeros(num_state)
-x_final_states = np.array([0, 0, 0, 0])
+x_final_states = np.array([0, 0, 0, 0], dtype=np.float64)
 
 # Read initial guess from a file, you can also set it to your own test values.
-x_initial_guess = np.loadtxt(os.path.join(project_root, "src", "examples", "pushbot", "initial_guess_pushbot_example.txt"))
+x_initial_guess = np.loadtxt(os.path.join(project_root, "src/examples/pushbot/initial_guess_pushbot_example.txt"))
 x_initial_states[:] = x_initial_guess[:num_state]
-
 
 # 5. Initialize the solver hyperparameters, and you can change the hyperparameters here or after 
 params = pyCRISP.SolverParameters()
 solver = pyCRISP.SolverInterface(problem, params)
+print(f"[pyCRISP] Problem {problemName} created with {variableNum} variables and {N} time steps.")
 
-# set the parameters for those parametric functions: mandatory
-solver.set_problem_parameters("pushbotObjective", x_final_states) # the objective parameters are the terminal states for calculating the terminal cost
+# Set the parameters for those parametric functions: mandatory
+solver.set_problem_parameters("pushbotObjective", x_final_states)               # the objective parameters are the terminal states for calculating the terminal cost
 solver.set_problem_parameters("pushBotInitialConstraints", x_initial_states)
+
 # set the hyperparameters for the solver: optional
-# params.set_hyper_parameters("verbose", np.zeros(1))
+# solver.set_hyper_parameters("verbose", np.zeros(1))
 solver.initialize(x_initial_guess)
 solver.solve()
 
@@ -72,6 +71,6 @@ solution = solver.get_solution()
 # solver.set_hyper_parameters("max_iter", np.array([500]))
 # solver.set_problem_parameters("pushbotObjective", np.array([0.5, 0, 0, 0]))
 # x_initial_new = 0.1 * np.random.rand(variableNum)
-# solver.reset(x_initial_new)
+# solver.reset_problem(x_initial_new)
 # solver.solve()
 # solution = solver.get_solution()

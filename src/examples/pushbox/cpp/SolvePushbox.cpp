@@ -14,9 +14,9 @@ const scalar_t m = 1;
 const scalar_t mu = 0.5;
 const scalar_t g = 9.8;
 const scalar_t r = sqrt(a * a + b * b);
-const scalar_t c = 0.4;
+const scalar_t c = 0.4; 
 const scalar_t dt = 0.02;
-const size_t N = 100; // number of time steps
+const size_t N = 100;                   
 const size_t num_state = 3;
 const size_t num_control = 6;
 
@@ -177,7 +177,6 @@ int main(){
     pushboxProblem.addEqualityConstraint(initial);
     pushboxProblem.addInequalityConstraint(contact);
     pushboxProblem.addInequalityConstraint(contactSingleForce);
-
 
     // problem parameters
     vector_t xInitialStates(num_state);

@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && cd ../ && pwd )"
+
+# Set the xhost permissions for the Docker container
+xhost +local:docker
+
+# Set the Docker parameters
+docker run -it --rm --name crisp --gpus all --ipc=host --runtime=nvidia \
+    -e DISPLAY \
+    -e NVIDIA_DRIVER_CAPABILITIES=all \
+    -e XDG_RUNTIME_DIR=/tmp/runtime-root \
+    -e LIBGL_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri \
+    -e LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib \
+    -v $ROOT_DIR/src:/CRISP_env/src/ \
+    -v /tmp/.X11-unix:/tmp/.X11-unix \
+    -v /dev/dri/card0:/dev/dri/card0 \
+    -v /dev/drm_dp_aux0:/dev/drm_dp_aux0 \
+    -v /dev/dri:/dev/dri \
+    -v /dev/shm:/dev/shm \
+    -w /CRISP_env \
+    --network host \
+    crisp:latest \
