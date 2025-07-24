@@ -99,9 +99,14 @@ try:
 
         crispSol_share[:] = solution
         print(f"[Solver] published new trajectory @ {time.strftime('%H:%M:%S')}")
+        print(f"[pyCRISP] Initial state: {initial_state}, Final state: {final_state}")
         time.sleep(0.5)  
 except KeyboardInterrupt:
     print("[Solver] interrupted by user, cleaning up…")
 finally:
     crispSol_shm.close()
     crispSol_shm.unlink()
+    crispFinalState_shm.close()
+    crispFinalState_shm.unlink()
+    crispInitialState_shm.close()
+    crispInitialState_shm.unlink()
