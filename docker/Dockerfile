@@ -1,19 +1,29 @@
 FROM ubuntu:22.04
 
-# Update and install dependencies
+# Suppress all interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update and install system dependencies
 RUN apt update && apt install -y \
-    cmake \
-    libeigen3-dev \
     libboost-all-dev \
-    libyaml-dev \
     libyaml-cpp-dev \
-    python3 \
-    python3-pybind11 \
-    python-is-python3 \
-    pkg-config \
     build-essential \
+    libeigen3-dev \
+    libyaml-dev \
+    pkg-config \
+    cmake \
+    python-is-python3 \
+    python3-pybind11 \
+    python3-pip \
+    python3-tk \
+    python3 \
     git \
     && apt clean
+
+# Install Python dependencies
+RUN python3 -m pip install --no-cache-dir \
+    matplotlib==3.5.3 \
+    pyqt5
 
 # Set the working directory
 WORKDIR /app

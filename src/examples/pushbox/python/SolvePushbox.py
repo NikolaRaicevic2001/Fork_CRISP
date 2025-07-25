@@ -19,10 +19,8 @@ variableNum = N * (num_state + num_control)
 
 # Set problem parameters
 x_initial_guess = np.zeros(variableNum, dtype=np.float64)  
-x0 = np.zeros(num_state)
-num_segments = 18
-theta = 12 * 2 * np.pi / num_segments
-xf = np.array([3 * np.cos(theta), 3 * np.sin(theta), theta], dtype=np.float64)
+x0 = np.array([0.5, 0.2, 0.0], dtype=np.float64)   # Initial state [px, py, θ]
+xf = np.array([1.0, 1.0, 0.0], dtype=np.float64)    # Final state [px, py, θ]
 
 # Create the shared-memory block
 shm_name = "CRISP_publisher"
@@ -55,7 +53,7 @@ except FileNotFoundError:
     pass
 crispInitialState_shm = shared_memory.SharedMemory(name=shm_name, create=True, size=num_state * np.dtype(np.float64).itemsize)
 crispInitialState_share = np.ndarray((num_state,), dtype=np.float64, buffer=crispInitialState_shm.buf)
-crispInitialState_share[:] = np.zeros(num_state, dtype=np.float64)
+crispInitialState_share[:] = x0
 
 # Create optimization problem
 problemName = "Pushbox"
@@ -91,6 +89,7 @@ try:
     while True:
         initial_state = crispInitialState_share
         final_state = crispFinalState_share
+        x_initial_guess = solution
         solver.set_problem_parameters("pushboxObjective", final_state)
         solver.set_problem_parameters("pushboxInitialConstraints", initial_state)
         solver.reset_problem(x_initial_guess)
@@ -100,7 +99,6 @@ try:
         crispSol_share[:] = solution
         print(f"[Solver] published new trajectory @ {time.strftime('%H:%M:%S')}")
         print(f"[pyCRISP] Initial state: {initial_state}, Final state: {final_state}")
-        time.sleep(0.5)  
 except KeyboardInterrupt:
     print("[Solver] interrupted by user, cleaning up…")
 finally:

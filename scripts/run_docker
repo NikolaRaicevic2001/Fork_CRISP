@@ -6,7 +6,7 @@ ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && cd ../ && pwd
 xhost +local:docker
 
 # Set the Docker parameters
-docker run -it --rm --name crisp --gpus all --ipc=host --runtime=nvidia \
+docker run -it --rm --name crisp --gpus all --runtime=nvidia --ipc=host \
     -e DISPLAY \
     -e NVIDIA_DRIVER_CAPABILITIES=all \
     -e XDG_RUNTIME_DIR=/tmp/runtime-root \

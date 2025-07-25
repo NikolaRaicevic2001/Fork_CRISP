@@ -3,9 +3,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 
-from pathlib import Path
 from multiprocessing import shared_memory
-from matplotlib.animation import FuncAnimation
 
 # Hyperparameters
 a = 0.5                         # half width of the box
