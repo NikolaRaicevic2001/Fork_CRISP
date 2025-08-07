@@ -234,7 +234,7 @@ int main(){
         solver.solve();
         xOptimal = solver.getSolution();
 
-        std::ofstream log(PROJECT_ROOT / "src/examples/pushbox/results/results_pushbox_sdf_AD.csv");
+        std::ofstream log(PROJECT_ROOT / "examples/pushbox/results/results_pushbox_sdf_AD.csv");
         for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
         log.close();                              
 

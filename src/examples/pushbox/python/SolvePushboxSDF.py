@@ -13,7 +13,7 @@ import pyCRISP
 
 # Set the hyperparameters
 num_state = 3
-num_control = 6
+num_control = 3
 N = 100
 variableNum = N * (num_state + num_control)
 
@@ -56,7 +56,7 @@ crispInitialState_share = np.ndarray((num_state,), dtype=np.float64, buffer=cris
 crispInitialState_share[:] = x0
 
 # Create optimization problem
-problemName = "Pushbox"
+problemName = "PushboxSDF"
 folderName = "model"
 problem = pyCRISP.OptimizationProblem(variableNum, problemName)
 obj     = pyCRISP.ObjectiveFunction(variableNum, num_state, problemName, folderName, "pushboxObjective")
@@ -81,12 +81,12 @@ solver.set_hyper_parameters("maxIterations", np.array([1000]))              # ma
 solver.set_hyper_parameters("trustRegionInitRadius", np.array([1.0]))       # initial trust region radius
 solver.set_hyper_parameters("trustRegionMaxRadius", np.array([10.0]))       # maximum trust region radius
 solver.set_hyper_parameters("mu", np.array([1e1]))                          # penalty parameter
-solver.set_hyper_parameters("muMax", np.array([1e8]))                       # maximum penalty parameter
+solver.set_hyper_parameters("muMax", np.array([1e9]))                       # maximum penalty parameter
 solver.set_hyper_parameters("etaLow", np.array([0.25]))                     # low threshold for reduction ratio
 solver.set_hyper_parameters("etaHigh", np.array([0.75]))                    # high threshold for reduction ratio
 solver.set_hyper_parameters("trailTol", np.array([1e-5]))                   # tolerance for the outer iterations
 solver.set_hyper_parameters("trustRegionTol", np.array([1e-5]))             # tolerance for the trust region
-solver.set_hyper_parameters("constraintTol", np.array([1e-6]))              # tolerance for the maximum constraints violation
+solver.set_hyper_parameters("constraintTol", np.array([1e-7]))              # tolerance for the maximum constraints violation
 # solver.set_hyper_parameters("verbose", np.array([0]))                       # verbose level
 # solver.set_hyper_parameters("WeightedMode", np.array([0]))                  # 0: no weighted, 1: weighted
 # solver.set_hyper_parameters("WeightedTolFactor", np.array([10.0]))          # factor for the weighted mode
@@ -112,7 +112,7 @@ try:
 
         crispSol_share[:] = solution
         print(f"[Solver] published new trajectory @ {time.strftime('%H:%M:%S')}")
-        print(f"[pyCRISP] Initial state: {initial_state}, Final state: {final_state}")
+        print(f"[pyCRISP] Initial state: {initial_state}, Final state: {final_state}, Solution: {solution[:3]}")
 except KeyboardInterrupt:
     print("[Solver] interrupted by user, cleaning up…")
 finally:

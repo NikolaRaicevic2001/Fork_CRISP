@@ -12,11 +12,13 @@ b = 0.25                        # half height of the box
 dt = 0.02                       # time step (20 ms) 
 N           = 100               # number of time steps
 num_state   = 3                 # STATE  (3) : [px, py, θ]
-example_name = "pushbox_sdf"    # "pushbox" or "pushbox_sdf"
+example_name = "pushbox"    # "pushbox" or "pushbox_sdf"
 gradient_method = "None"
+
 if example_name == "pushbox":
-    num_control = 6             # CONTROL (6) : [cx, cy, λ1-λ4, λ5]  (cx, cy plotted)
+    num_control = 6             # CONTROL (6) : [cx, cy, λ1-λ4]  (cx, cy plotted)
     csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}.csv" 
+    gradient_method = "Analytic"
 elif example_name == "pushbox_sdf":
     gradient_method = "AD"      # gradient method for SDF: "AD" or "FD"
     num_control = 3             # CONTROL (3) : [cx, cy, λ]  (cx, cy plotted)
@@ -36,8 +38,11 @@ cx,  cy         = data[:, 3], data[:, 4]
 lam             = data[:, 5:]  
 t               = np.arange(N) * dt
 
+world_cx = px +  np.cos(theta)*cx  -  np.sin(theta)*cy
+world_cy = py +  np.sin(theta)*cx  +  np.cos(theta)*cy
+
 # ---------- STATIC PLOTS ----------
-fig, ax = plt.subplots(2, 1, sharex=True, figsize=(7, 5))
+fig, ax = plt.subplots(3, 1, sharex=True, figsize=(7, 5))
 
 ax[0].plot(t, px,     label="px  [m]")
 ax[0].plot(t, py,     label="py  [m]")
@@ -45,11 +50,16 @@ ax[0].plot(t, theta,  label="θ   [rad]")
 ax[0].set_ylabel("states")
 ax[0].legend()
 
-ax[1].plot(t, cx, label="cx  [m]")
-ax[1].plot(t, cy, label="cy  [m]")
+ax[1].plot(t, world_cx, label="cx  [m]")
+ax[1].plot(t, world_cy, label="cy  [m]")
 ax[1].set_xlabel("time [s]")
 ax[1].set_ylabel("contact point")
 ax[1].legend()
+
+ax[2].plot(t, lam, label="λ  [N]")
+ax[2].set_xlabel("time [s]")
+ax[2].set_ylabel("contact forces")
+ax[2].legend()
 
 fig.tight_layout()
 fig.savefig(f"results/figures_{example_name}_{gradient_method}.png", dpi=100, bbox_inches='tight')
@@ -61,6 +71,7 @@ ax2.set_xlim(px.min()-1, px.max()+1)
 ax2.set_ylim(py.min()-1, py.max()+1)
 box,   = ax2.plot([], [], 'k-', lw=2, label="box")
 center,= ax2.plot([], [], 'bo', ms=4, label="box center")
+contact_points, = ax2.plot([], [], 'ro', ms=6, label="contact points")
 goal,  = ax2.plot([], [], 'r--', ms=4, label="goal")
 ax2.set_title("Push Box Animation")
 ax2.set_xlabel("x [m]")
@@ -81,8 +92,9 @@ def frame(k):
     # Update plot elements
     box.set_data(world[0], world[1])
     center.set_data([px[k]], [py[k]])
+    contact_points.set_data([world_cx[k]], [world_cy[k]])
     goal.set_data(goal_corner[0], goal_corner[1])
-    return box, center
+    return box, center, contact_points, goal
 
 ani = FuncAnimation(fig2, frame, frames=N, interval=dt*1000, blit=True)
 ani.save(f"results/animation_{example_name}_{gradient_method}.gif", writer='pillow', fps=1/dt, dpi=100)
