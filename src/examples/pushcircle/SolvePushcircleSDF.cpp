@@ -8,7 +8,7 @@
 using namespace CRISP;
 
 // Define model parameters for circle
-const scalar_t R = 0.4;                 // radius of the circle
+const scalar_t R = 0.2;                 // radius of the circle
 const scalar_t m = 1;                   // mass of the circle
 const scalar_t mu = 0.5;                // friction coefficient
 const scalar_t g = 9.8;                 // gravitational acceleration  
@@ -39,7 +39,7 @@ inline Eigen::Matrix<T,2,1> sdfCircle_Grad(const Eigen::Matrix<T,2,1>& p, T radi
 
     Eigen::Matrix<T,2,1> n;
     n << p.x()*inv, p.y()*inv;          // p / |p|
-    return n;
+    return -n;
 }
 
 // Numerical gradient of the SDF using finite differences
@@ -75,7 +75,7 @@ ad_function_t pushcircleDynamicConstraints = [](const ad_vector_t& x, ad_vector_
         ad_scalar_t py_next = x[idx + (num_state + num_control) + 1];
 
         auto g_i = sdfCircle(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), ad_scalar_t(R));
-        auto n_i = sdfCircle_FDGrad(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), ad_scalar_t(R));
+        auto n_i = sdfCircle_Grad(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), ad_scalar_t(R));
 
         ad_scalar_t Fx = lam_i * n_i.x();
         ad_scalar_t Fy = lam_i * n_i.y();
@@ -190,6 +190,7 @@ int main(){
     SolverParameters params;
     SolverInterface solver(pushcircleProblem, params);
     solver.setProblemParameters("pushcircleInitialConstraints", xInitialStates);
+    solver.setHyperParameters("maxIterations", vector_t::Constant(1, 1000));
     solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-3));
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-3));
     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));

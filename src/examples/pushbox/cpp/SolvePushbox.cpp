@@ -190,6 +190,7 @@ int main(){
     SolverInterface solver(pushboxProblem, params);
     // solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
+    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e10));
     solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-3));
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-3));
     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));

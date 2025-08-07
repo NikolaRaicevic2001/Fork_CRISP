@@ -69,7 +69,7 @@ inline Eigen::Matrix<T,2,1> sdfBox_Grad(const Eigen::Matrix<T,2,1>& p, const Eig
     /* if the point is *outside*, override by the clamped vector --- */
     n.x() = CppAD::CondExpGt(g, T(0), ax/g, n.x());
     n.y() = CppAD::CondExpGt(g, T(0), ay/g, n.y());
-    return n;
+    return -n;
 }
 
 // numerical gradient of the SDF using finite differences
