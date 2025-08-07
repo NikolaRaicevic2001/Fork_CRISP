@@ -7,12 +7,12 @@ from matplotlib.animation import FuncAnimation
 
 # ---------------- PARAMETERS ----------------
 # Define model parameters for pushbox
-a = 0.5                         # half width of the box
-b = 0.25                        # half height of the box
+a = 0.05                        # half width of the box
+b = 0.05                        # half height of the box
 dt = 0.02                       # time step (20 ms) 
-N           = 100               # number of time steps
+N  = 100                        # number of time steps
 num_state   = 3                 # STATE  (3) : [px, py, θ]
-example_name = "pushbox"    # "pushbox" or "pushbox_sdf"
+example_name = "pushbox_sdf"    # "pushbox" or "pushbox_sdf"
 gradient_method = "None"
 
 if example_name == "pushbox":
@@ -27,7 +27,7 @@ elif example_name == "pushbox_sdf":
 # Goal configuration (in world frame)
 num_segments    = 18            # number of segments for the goal circle
 theta_seg       = 12 * 2 * np.pi / num_segments  
-goal_state      = np.array([3 * np.cos(theta_seg), 3 * np.sin(theta_seg), theta_seg])  
+goal_state      = np.array([2 * np.cos(theta_seg), 2 * np.sin(theta_seg), theta_seg])  
 
 # ---------------- load data from CSV --------------------
 flat   = np.loadtxt(csv_file, dtype=float)          # 900 × 1
@@ -67,8 +67,8 @@ fig.savefig(f"results/figures_{example_name}_{gradient_method}.png", dpi=100, bb
 # ---------- SIMPLE CARTOON ANIMATION ----------
 fig2, ax2 = plt.subplots(figsize=(7, 5))
 ax2.set_aspect("equal")
-ax2.set_xlim(px.min()-1, px.max()+1)
-ax2.set_ylim(py.min()-1, py.max()+1)
+ax2.set_xlim(px.min()-1.0, px.max()+1.0)
+ax2.set_ylim(py.min()-1.0, py.max()+1.0)
 box,   = ax2.plot([], [], 'k-', lw=2, label="box")
 center,= ax2.plot([], [], 'bo', ms=4, label="box center")
 contact_points, = ax2.plot([], [], 'ro', ms=6, label="contact points")

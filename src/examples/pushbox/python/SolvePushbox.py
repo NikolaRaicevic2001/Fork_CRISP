@@ -19,8 +19,8 @@ variableNum = N * (num_state + num_control)
 
 # Set problem parameters
 x_initial_guess = np.zeros(variableNum, dtype=np.float64)  
-x0 = np.array([0.5, 0.2, 0.0], dtype=np.float64)   # Initial state [px, py, θ]
-xf = np.array([1.0, 1.0, 0.0], dtype=np.float64)    # Final state [px, py, θ]
+x0 = np.array([1.0, 0.2, 0.0], dtype=np.float64)   # Initial state [px, py, θ]
+xf = np.array([1.5, 0.5, 0.0], dtype=np.float64)    # Final state [px, py, θ]
 
 # Create the shared-memory block
 shm_name = "CRISP_publisher"

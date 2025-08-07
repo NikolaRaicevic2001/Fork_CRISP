@@ -7,8 +7,8 @@
 using namespace CRISP;
 
 // Define model parameters for pushbox
-const scalar_t a = 0.5;
-const scalar_t b = 0.25;
+const scalar_t a = 0.05;
+const scalar_t b = 0.05;
 const scalar_t m = 1;
 const scalar_t mu = 0.5;
 const scalar_t g = 9.8;
@@ -228,7 +228,7 @@ int main(){
     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
     size_t num_segments = 18;
         scalar_t theta = 12 * 2 * M_PI / num_segments;
-        xFinalStates << 3*cos(theta), 3*sin(theta), theta;
+        xFinalStates << 2*cos(theta), 2*sin(theta), theta;
         solver.setProblemParameters("pushboxObjective", xFinalStates);
         solver.initialize(xInitialGuess);
         solver.solve();
