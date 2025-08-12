@@ -1,0 +1,129 @@
+# Import necessary libraries
+import os
+import sys
+import time
+import numpy as np
+
+from pathlib import Path
+from multiprocessing import shared_memory
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../../build/core')) # Add the path to generated python bindings
+project_root = Path(__file__).resolve().parent.parent.parent.parent.parent      # Adjust the path to your project root
+import pyCRISP
+
+# Set the hyperparameters
+R = 0.1
+num_state = 2
+num_control = 3
+N = 100
+variableNum = N * (num_state + num_control)
+
+# Set problem parameters
+x_initial_guess = np.zeros(variableNum, dtype=np.float64) 
+for k in range(2, x_initial_guess.size, (num_state + num_control)):
+    x_initial_guess[k] = R
+    if k + 1 < x_initial_guess.size:
+        x_initial_guess[k + 1] = 0.0
+x0 = np.array([0.5, 0.2], dtype=np.float64)     # Initial state [px, py]
+xf = np.array([1.0, 1.0], dtype=np.float64)     # Final state   [px, py]
+
+# Create the shared-memory block
+shm_name = "CRISP_publisher"
+try:
+    existing = shared_memory.SharedMemory(name=shm_name)
+    existing.close()
+    existing.unlink()
+except FileNotFoundError:
+    pass
+crispSol_shm = shared_memory.SharedMemory(name=shm_name, create=True, size=variableNum * np.dtype(np.float64).itemsize)
+crispSol_share = np.ndarray((variableNum,), dtype=np.float64, buffer=crispSol_shm.buf)
+
+shm_name = "CRISP_final_state"
+try:
+    existing = shared_memory.SharedMemory(name=shm_name)
+    existing.close()
+    existing.unlink()
+except FileNotFoundError:
+    pass
+crispFinalState_shm = shared_memory.SharedMemory(name=shm_name, create=True, size=num_state * np.dtype(np.float64).itemsize)
+crispFinalState_share = np.ndarray((num_state,), dtype=np.float64, buffer=crispFinalState_shm.buf)
+crispFinalState_share[:] = xf
+
+shm_name = "CRISP_initial_state"
+try:
+    existing = shared_memory.SharedMemory(name=shm_name)
+    existing.close()
+    existing.unlink()
+except FileNotFoundError:
+    pass
+crispInitialState_shm = shared_memory.SharedMemory(name=shm_name, create=True, size=num_state * np.dtype(np.float64).itemsize)
+crispInitialState_share = np.ndarray((num_state,), dtype=np.float64, buffer=crispInitialState_shm.buf)
+crispInitialState_share[:] = x0
+
+# Create optimization problem
+problemName = "PushcircleSDF"
+folderName = "model"
+problem = pyCRISP.OptimizationProblem(variableNum, problemName)
+obj     = pyCRISP.ObjectiveFunction(variableNum, num_state, problemName, folderName, "pushcircleObjective")
+dynamic = pyCRISP.ConstraintFunction(variableNum, problemName, folderName, "pushcircleDynamicConstraints")
+contact = pyCRISP.ConstraintFunction(variableNum, problemName, folderName, "pushcircleContactConstraints")
+initial = pyCRISP.ConstraintFunction(variableNum, num_state, problemName, folderName, "pushcircleInitialConstraints")
+problem.add_objective(obj)
+problem.add_equality_constraint(dynamic)
+problem.add_inequality_constraint(contact)
+problem.add_equality_constraint(initial)
+
+# Initialize the solver
+params = pyCRISP.SolverParameters()
+solver = pyCRISP.SolverInterface(problem, params)
+print(f"[pyCRISP] Problem {problemName} created with {variableNum} variables and {N} time steps.")
+
+# Set the parameters for those parametric functions
+solver.set_problem_parameters("pushcircleObjective", xf)               
+solver.set_problem_parameters("pushcircleInitialConstraints", x0)
+print(f"[pyCRISP] Problem parameters set with initial states {x0} and final states {xf}.")
+# solver.set_hyper_parameters("maxIterations", np.array([1000]))              # maximum number of iterations for the outer loop
+# solver.set_hyper_parameters("trustRegionInitRadius", np.array([1.0]))       # initial trust region radius
+# solver.set_hyper_parameters("trustRegionMaxRadius", np.array([10.0]))       # maximum trust region radius
+# solver.set_hyper_parameters("mu", np.array([1e1]))                          # penalty parameter
+# solver.set_hyper_parameters("muMax", np.array([1e9]))                       # maximum penalty parameter
+# solver.set_hyper_parameters("etaLow", np.array([0.25]))                     # low threshold for reduction ratio
+# solver.set_hyper_parameters("etaHigh", np.array([0.75]))                    # high threshold for reduction ratio
+# solver.set_hyper_parameters("trailTol", np.array([1e-5]))                   # tolerance for the outer iterations
+# solver.set_hyper_parameters("trustRegionTol", np.array([1e-5]))             # tolerance for the trust region
+# solver.set_hyper_parameters("constraintTol", np.array([1e-7]))              # tolerance for the maximum constraints violation
+# solver.set_hyper_parameters("verbose", np.array([0]))                       # verbose level
+# solver.set_hyper_parameters("WeightedMode", np.array([0]))                  # 0: no weighted, 1: weighted
+# solver.set_hyper_parameters("WeightedTolFactor", np.array([10.0]))          # factor for the weighted mode
+# solver.set_hyper_parameters("secondOrderCorrection", np.array([1]))         # 0: no second order correction, 1: second order correction
+
+solver.initialize(x_initial_guess)
+solver.solve()
+
+# Get the solution
+solution = solver.get_solution()
+print(f"[pyCRISP] Solution obtained: {solution.shape} , type of the solution {solution.dtype}")
+
+try:
+    while True:
+        initial_state = crispInitialState_share
+        final_state = crispFinalState_share
+        x_initial_guess = solution
+        solver.set_problem_parameters("pushcircleObjective", final_state)
+        solver.set_problem_parameters("pushcircleInitialConstraints", initial_state)
+        solver.reset_problem(x_initial_guess)
+        solver.solve()
+        solution = solver.get_solution()
+
+        crispSol_share[:] = solution
+        print(f"[Solver] published new trajectory @ {time.strftime('%H:%M:%S')}")
+        print(f"[pyCRISP] Initial state: {initial_state}, Final state: {final_state}, Solution: {solution[:3]}")
+except KeyboardInterrupt:
+    print("[Solver] interrupted by user, cleaning up…")
+finally:
+    crispSol_shm.close()
+    crispSol_shm.unlink()
+    crispFinalState_shm.close()
+    crispFinalState_shm.unlink()
+    crispInitialState_shm.close()
+    crispInitialState_shm.unlink()

@@ -8,7 +8,7 @@
 using namespace CRISP;
 
 // Define model parameters for circle
-const scalar_t R = 0.2;                 // radius of the circle
+const scalar_t R = 0.1;                 // radius of the circle
 const scalar_t m = 1;                   // mass of the circle
 const scalar_t mu = 0.5;                // friction coefficient
 const scalar_t g = 9.8;                 // gravitational acceleration  
@@ -178,7 +178,7 @@ int main(){
     vector_t xInitialGuess(variableNum);
     vector_t xOptimal(variableNum);
     // define a theta from 0 to 2pi, and define different final state for the problem with equal interval, for example 20 degree
-    xInitialStates << 0, 0;
+    xInitialStates << 0.5, 0.2;
     // set zero initial guess
     xInitialGuess.setZero();
     for (size_t k = 2; k < xInitialGuess.size(); k += (num_state+num_control))
@@ -195,16 +195,17 @@ int main(){
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-3));
     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
     // solver.setHyperParameters("verbose", vector_t::Constant(1, 1));  
-        xFinalStates << -1.0, -0.25;
+        xFinalStates << 1.0, 1.0;
         solver.setProblemParameters("pushcircleObjective", xFinalStates);
         solver.initialize(xInitialGuess);
         solver.solve();
         xOptimal = solver.getSolution();
 
-        std::ofstream log(PROJECT_ROOT / "src/examples/pushcircle/results/results_pushcircle_sdf_FD.csv");
+        std::ofstream log(PROJECT_ROOT / "examples/pushcircle/results/results_pushcircle_sdf_AD.csv");
         for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
         log.close();                              
 
     }
+
 
 

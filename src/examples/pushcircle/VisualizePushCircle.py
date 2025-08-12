@@ -7,12 +7,12 @@ from matplotlib.patches import Circle
 from matplotlib.animation import FuncAnimation
 
 # ──────── PARAMETERS ──────────────────────────────────────────────────────
-R              = 0.2            # radius of the circle  
+R              = 0.1            # radius of the circle  
 dt             = 0.02           # time-step              
 N              = 100            # number of time-steps
 num_state      = 2              # [px, py]
 num_control    = 3              # [cx, cy, λ]  -> we plot cx, cy
-gradient_method  = "FD"         # "AD" or "FD" – only used in file-name
+gradient_method  = "AD"         # "AD" or "FD" – only used in file-name
 csv_file = ( Path(__file__).resolve().parent / "results" / f"results_pushcircle_sdf_{gradient_method}.csv" )
 
 # goal configuration (in world frame)
