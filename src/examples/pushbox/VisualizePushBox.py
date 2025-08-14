@@ -7,20 +7,20 @@ from matplotlib.animation import FuncAnimation
 
 # ---------------- PARAMETERS ----------------
 # Define model parameters for pushbox
-a = 0.05                        # half width of the box
-b = 0.05                        # half height of the box
+a = 0.25                        # half width of the box
+b = 0.25                        # half height of the box
 dt = 0.02                       # time step (20 ms) 
 N  = 100                        # number of time steps
 num_state   = 3                 # STATE  (3) : [px, py, θ]
-example_name = "pushbox_sdf"        # "pushbox" or "pushbox_sdf"
+example_name = "pushbox_sdf"    # "pushbox" or "pushbox_sdf"
 gradient_method = "None"
 
 if example_name == "pushbox":
+    gradient_method = "AD"
     num_control = 6             # CONTROL (6) : [cx, cy, λ1-λ4]  (cx, cy plotted)
-    csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}.csv" 
-    gradient_method = "Analytic"
+    csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}_{gradient_method}.csv" 
 elif example_name == "pushbox_sdf":
-    gradient_method = "AD"      # gradient method for SDF: "AD" or "FD"
+    gradient_method = "FD"      # gradient method for SDF: "AD" or "FD"
     num_control = 3             # CONTROL (3) : [cx, cy, λ]  (cx, cy plotted)
     csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}_{gradient_method}.csv" 
 
