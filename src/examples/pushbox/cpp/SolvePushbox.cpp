@@ -8,8 +8,8 @@
 using namespace CRISP;
 
 // Define model model parameters for pushbox
-const scalar_t a = 0.25;
-const scalar_t b = 0.25;
+const scalar_t a = 0.05;
+const scalar_t b = 0.05;
 const scalar_t m = 1;
 const scalar_t mu = 0.5;
 const scalar_t g = 9.8;
@@ -29,23 +29,23 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
     for (size_t i = 0; i < N - 1; ++i) {
         size_t idx = i * (num_state + num_control);
         // Extract state and control for current and next time steps
-        ad_scalar_t px_i = x[idx + 0];
-        ad_scalar_t py_i = x[idx + 1];
-        ad_scalar_t theta_i = x[idx + 2];
-        ad_scalar_t cx_i = x[idx + 3];
-        ad_scalar_t cy_i = x[idx + 4];
-        ad_scalar_t lambda1_i = x[idx + 5];
-        ad_scalar_t lambda2_i = x[idx + 6];
-        ad_scalar_t lambda3_i = x[idx + 7];
-        ad_scalar_t lambda4_i = x[idx + 8];
+        ad_scalar_t px_i        = x[idx + 0];
+        ad_scalar_t py_i        = x[idx + 1];
+        ad_scalar_t theta_i     = x[idx + 2];
+        ad_scalar_t cx_i        = x[idx + 3];
+        ad_scalar_t cy_i        = x[idx + 4];
+        ad_scalar_t lambda1_i   = x[idx + 5];
+        ad_scalar_t lambda2_i   = x[idx + 6];
+        ad_scalar_t lambda3_i   = x[idx + 7];
+        ad_scalar_t lambda4_i   = x[idx + 8];
 
-        ad_scalar_t px_next = x[idx + (num_state + num_control) + 0];
-        ad_scalar_t py_next = x[idx + (num_state + num_control) + 1];
-        ad_scalar_t theta_next = x[idx + (num_state + num_control) + 2];
+        ad_scalar_t px_next     = x[idx + (num_state + num_control) + 0];
+        ad_scalar_t py_next     = x[idx + (num_state + num_control) + 1];
+        ad_scalar_t theta_next  = x[idx + (num_state + num_control) + 2];
 
-        ad_scalar_t px_dot = (1/(mu*m*g))*(cos(theta_i)*(lambda2_i + lambda4_i) - sin(theta_i)*(lambda1_i + lambda3_i));
-        ad_scalar_t py_dot = (1/(mu*m*g))*(sin(theta_i)*(lambda2_i + lambda4_i) + cos(theta_i)*(lambda1_i + lambda3_i));
-        ad_scalar_t theta_dot = (1/(mu*m*g*c*r))*(-cy_i*(lambda2_i + lambda4_i) + cx_i*(lambda1_i + lambda3_i));
+        ad_scalar_t px_dot      = (1/(mu*m*g))*(cos(theta_i)*(lambda2_i + lambda4_i) - sin(theta_i)*(lambda1_i + lambda3_i));
+        ad_scalar_t py_dot      = (1/(mu*m*g))*(sin(theta_i)*(lambda2_i + lambda4_i) + cos(theta_i)*(lambda1_i + lambda3_i));
+        ad_scalar_t theta_dot   = (1/(mu*m*g*c*r))*(-cy_i*(lambda2_i + lambda4_i) + cx_i*(lambda1_i + lambda3_i));
 
         // Explicit State Update
         y.segment(i * num_state, num_state) << px_next - px_i - px_dot * dt,

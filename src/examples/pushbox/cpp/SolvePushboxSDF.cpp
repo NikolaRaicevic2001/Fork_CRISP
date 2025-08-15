@@ -7,8 +7,8 @@
 using namespace CRISP;
 
 // Define model parameters for pushbox
-const scalar_t a = 0.25;
-const scalar_t b = 0.25;
+const scalar_t a = 0.05;
+const scalar_t b = 0.05;
 const scalar_t m = 1;
 const scalar_t mu = 0.5;
 const scalar_t g = 9.8;
@@ -100,21 +100,21 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t cy_i    = x[idx + 4];
         ad_scalar_t lam_i   = x[idx + 5];
 
-        ad_scalar_t px_next = x[idx + (num_state + num_control) + 0];
-        ad_scalar_t py_next = x[idx + (num_state + num_control) + 1];
-        ad_scalar_t theta_next = x[idx + (num_state + num_control) + 2];
+        ad_scalar_t px_next     = x[idx + (num_state + num_control) + 0];
+        ad_scalar_t py_next     = x[idx + (num_state + num_control) + 1];
+        ad_scalar_t theta_next  = x[idx + (num_state + num_control) + 2];
 
         auto g_i = sdfBox(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), Eigen::Matrix<ad_scalar_t,2,1>(a,b));
         auto n_i = sdfBox_Grad(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), Eigen::Matrix<ad_scalar_t,2,1>(a,b));
         
         ad_scalar_t c = cos(th_i),  s = sin(th_i);
-        ad_scalar_t Fx = lam_i * (  c*n_i.x() - s*n_i.y() );
-        ad_scalar_t Fy = lam_i * (  s*n_i.x() + c*n_i.y() );
+        ad_scalar_t Fx       = lam_i * (  c*n_i.x() - s*n_i.y() );
+        ad_scalar_t Fy       = lam_i * (  s*n_i.x() + c*n_i.y() );
         ad_scalar_t torque_z = lam_i * (cx_i*n_i.y() - cy_i*n_i.x());
 
-        ad_scalar_t px_dot    =  Fx / (mu * m * g);
-        ad_scalar_t py_dot    =  Fy / (mu * m * g);
-        ad_scalar_t th_dot    =  torque_z / (mu * m * g * c * r);
+        ad_scalar_t px_dot  =  Fx / (mu * m * g);
+        ad_scalar_t py_dot  =  Fy / (mu * m * g);
+        ad_scalar_t th_dot  =  torque_z / (mu * m * g * c * r);
 
         // Explicit State Update
         y.segment(i * num_state, num_state) << 
