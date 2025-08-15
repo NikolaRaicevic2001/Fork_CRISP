@@ -77,7 +77,7 @@ inline T safe_norm2(const T& x, const T& y, const T& eps) {
 // r_in : corner radius (clamped to [0, min(hx,hy)])
 // eps  : small number to avoid 0/0 at corners/edges
 template<class T>
-inline Sdf2D<T> sdgBoxRounded(const Eigen::Matrix<T,2,1>& p,
+inline Sdf2D<T> sdfBoxRounded(const Eigen::Matrix<T,2,1>& p,
                               const Eigen::Matrix<T,2,1>& half,
                               const T& r_in,
                               const T eps = T(1e-12)){

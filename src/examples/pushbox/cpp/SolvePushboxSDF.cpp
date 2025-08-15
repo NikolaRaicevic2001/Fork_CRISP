@@ -1,8 +1,10 @@
 #include "solver_core/SolverInterface.h"
+#include "sdf/RoundBox.h"
 
 #include <chrono>
 #include <filesystem>
-#include "math.h"
+#include <cmath>              // use <cmath>, not <math.h>
+#include <cppad/cppad.hpp>    // for CppAD::cos/sin with AD
 
 using namespace CRISP;
 
@@ -12,84 +14,30 @@ const scalar_t b = 0.05;
 const scalar_t m = 1;
 const scalar_t mu = 0.5;
 const scalar_t g = 9.8;
-const scalar_t r = sqrt(a * a + b * b);
-const scalar_t c = 0.4;
+const scalar_t R_box = std::sqrt(a * a + b * b);    // renamed from r -> R_box
+const scalar_t c_inertia = 0.4;                     // renamed from c -> c_inertia
 const scalar_t dt = 0.02;
-const size_t N = 100;               // number of time steps
-const size_t num_state = 3;         // STATE  (3) : [px, py, θ]
-const size_t num_control = 3;       // CONTROL (3) : [cx, cy, λ ]
+const size_t N = 100;                               // number of time steps
+const size_t num_state = 3;                         // STATE  (3) : [px, py, θ]
+const size_t num_control = 3;                       // CONTROL (3) : [cx, cy, λ ]
+
+// SDF rounding radius (meters)
+constexpr scalar_t ROUND_R = 0.01;
 
 // Global variables for the problem
-static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();    
+static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();
 
-/* ---------- exact SDF of an axis–aligned box -------------------- */
-template<class T>
-inline T sdfBox(const Eigen::Matrix<T,2,1>& p, const Eigen::Matrix<T,2,1>& half)
-{
-    T dx = CppAD::abs(p.x()) - half.x();
-    T dy = CppAD::abs(p.y()) - half.y();
-
-    /* outside term: ‖max(d,0)‖₂ ---------------------------------- */
-    T ax = CppAD::CondExpGt(dx, T(0), dx, T(0));   // max(dx,0)
-    T ay = CppAD::CondExpGt(dy, T(0), dy, T(0));   // max(dy,0)
-    T outside = CppAD::sqrt(ax*ax + ay*ay);
-
-    /* inside term: min(max(dx,dy),0) ------------------------------ */
-    T dmax   = CppAD::CondExpGt(dx, dy, dx, dy);   // max(dx,dy)
-    T inside = CppAD::CondExpLt(dmax, T(0), dmax, T(0));
-
-    return outside + inside;
-}
-
-// gradient of the SDF using analytical formula
-template<class T>
-inline Eigen::Matrix<T,2,1> sdfBox_Grad(const Eigen::Matrix<T,2,1>& p, const Eigen::Matrix<T,2,1>& half)
-{
-    /* distances to the box faces --------------------------------- */
-    T dx = CppAD::abs(p.x()) - half.x();
-    T dy = CppAD::abs(p.y()) - half.y();
-
-    /* helper: max(d,0) ------------------------------------------- */
-    T ax = CppAD::CondExpGt(dx, T(0), dx, T(0));
-    T ay = CppAD::CondExpGt(dy, T(0), dy, T(0));
-    T g  = CppAD::sqrt(ax*ax + ay*ay);               // ‖clamped‖₂
-
-    /* sign(p) implemented with CondExp --------------------------- */
-    T sx = CppAD::CondExpGe(p.x(), T(0), T(1), T(-1));
-    T sy = CppAD::CondExpGe(p.y(), T(0), T(1), T(-1));
-
-    /* choose which face gives the normal ------------------------- */
-    Eigen::Matrix<T,2,1> n;
-    n.x() = CppAD::CondExpGt(dx, dy, sx, T(0));      // if |dx|>|dy| use x-face
-    n.y() = CppAD::CondExpGt(dx, dy, T(0), sy);      // else use y-face
-
-    /* if the point is *outside*, override by the clamped vector --- */
-    n.x() = CppAD::CondExpGt(g, T(0), ax/g, n.x());
-    n.y() = CppAD::CondExpGt(g, T(0), ay/g, n.y());
-    return -n;
-}
-
-// numerical gradient of the SDF using finite differences
-template<class T>
-Eigen::Matrix<T,2,1> sdfBox_FDGrad(const Eigen::Matrix<T,2,1>& p, const Eigen::Matrix<T,2,1>& half, T eps = T(1e-6))
-{
-    Eigen::Matrix<T,2,1> g;
-    auto f0 = sdfBox(p, half);
-    for (int k=0; k<2; ++k)
-    {
-        Eigen::Matrix<T,2,1> ph = p;
-        ph(k) += eps;
-        g(k) = (sdfBox(ph, half) - f0) / eps;
-    }
-    return g / CppAD::sqrt(g.squaredNorm());              
-}
-
-// define the dynamics constraints
+// -------------------------- Dynamics constraints -----------------------------
 ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
+    using V2ad = Eigen::Matrix<ad_scalar_t,2,1>;
+
+    // Build 'half' without parens to avoid most-vexing-parse
+    V2ad half; half << ad_scalar_t(a), ad_scalar_t(b);
+
     y.resize((N - 1) * num_state);
     for (size_t i = 0; i < N - 1; ++i) {
-        size_t idx = i * (num_state + num_control);
-        // Extract state and control for current and next time steps
+        const size_t idx = i * (num_state + num_control);
+
         ad_scalar_t px_i    = x[idx + 0];
         ad_scalar_t py_i    = x[idx + 1];
         ad_scalar_t th_i    = x[idx + 2];
@@ -101,142 +49,143 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t py_next     = x[idx + (num_state + num_control) + 1];
         ad_scalar_t theta_next  = x[idx + (num_state + num_control) + 2];
 
-        // auto sdg = sdgBoxRounded<ad_scalar_t>(Eigen::Matrix<ad_scalar_t,2,1>(cx_i, cy_i), Eigen::Matrix<ad_scalar_t,2,1>(a, b), ad_scalar_t(0.01));
-        // auto g_i = sdg.d;
-        // auto n_i = sdg.n;   
-        auto g_i = sdfBox(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), Eigen::Matrix<ad_scalar_t,2,1>(a,b));
-        auto n_i = sdfBox_Grad(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), Eigen::Matrix<ad_scalar_t,2,1>(a,b));
-        
-        ad_scalar_t c = cos(th_i),  s = sin(th_i);
-        ad_scalar_t Fx       = lam_i * (  c*n_i.x() - s*n_i.y() );
-        ad_scalar_t Fy       = lam_i * (  s*n_i.x() + c*n_i.y() );
-        ad_scalar_t torque_z = lam_i * (cx_i*n_i.y() - cy_i*n_i.x());
+        // Build contact point p_i safely
+        V2ad p_i; p_i << cx_i, cy_i;
 
-        ad_scalar_t px_dot  =  Fx / (mu * m * g);
-        ad_scalar_t py_dot  =  Fy / (mu * m * g);
-        ad_scalar_t th_dot  =  torque_z / (mu * m * g * c * r);
+        const auto sdf = CRISP::sdf::sdfBoxRounded<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
+        const ad_scalar_t g_i = sdf.d;
+        const V2ad        n_i = -sdf.n;
 
-        // Explicit State Update
-        y.segment(i * num_state, num_state) <<  px_next - px_i - px_dot * dt, 
-                                                py_next - py_i - py_dot * dt, 
-                                                theta_next - th_i - th_dot * dt;
+        const ad_scalar_t cth = CppAD::cos(th_i);
+        const ad_scalar_t sth = CppAD::sin(th_i);
+
+        const ad_scalar_t Fx       = lam_i * (cth*n_i.x() - sth*n_i.y());
+        const ad_scalar_t Fy       = lam_i * (sth*n_i.x() + cth*n_i.y());
+        const ad_scalar_t torque_z = lam_i * (cx_i*n_i.y() - cy_i*n_i.x());
+
+        const ad_scalar_t denom_lin = ad_scalar_t(mu * m * g);
+        const ad_scalar_t denom_ang = ad_scalar_t(mu * m * g * c_inertia * R_box);
+
+        const ad_scalar_t px_dot  = Fx / denom_lin;
+        const ad_scalar_t py_dot  = Fy / denom_lin;
+        const ad_scalar_t th_dot  = torque_z / denom_ang;
+
+        y.segment(i * num_state, num_state) <<  px_next - px_i - px_dot * ad_scalar_t(dt),
+                                                py_next - py_i - py_dot * ad_scalar_t(dt),
+                                                theta_next - th_i - th_dot * ad_scalar_t(dt);
     }
 };
 
-// contact implicit constraints for pushbox
+// ----------------------- Contact-implicit constraints ------------------------
 ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& y)
 {
+    using V2ad = Eigen::Matrix<ad_scalar_t,2,1>;
+    V2ad half; half << ad_scalar_t(a), ad_scalar_t(b);
+
     y.resize((N-1)*3);
     for (size_t i=0; i<N-1; ++i)
     {
-        size_t idx = i*(num_state+num_control);
-        ad_scalar_t px_i    = x[idx + 0];
-        ad_scalar_t py_i    = x[idx + 1];
-        ad_scalar_t theta_i = x[idx + 2];
-        ad_scalar_t cx_i    = x[idx + 3];
-        ad_scalar_t cy_i    = x[idx + 4];
-        ad_scalar_t lam_i   = x[idx + 5];
+        const size_t idx = i*(num_state+num_control);
+        ad_scalar_t cx_i  = x[idx + 3];
+        ad_scalar_t cy_i  = x[idx + 4];
+        ad_scalar_t lam_i = x[idx + 5];
 
-        auto g_i  = sdfBox(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), Eigen::Matrix<ad_scalar_t,2,1>(a,b));
+        V2ad p_i; p_i << cx_i, cy_i;
 
-        y.segment(i*3,3) << lam_i,          // λ ≥ 0  (handled as inequality)
-                           g_i,             // g ≥ 0
-                          -g_i*lam_i;       // -λ·g ≥ 0   ⇒ complementarity
+        const auto sdf = CRISP::sdf::sdfBoxRounded<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
+        const ad_scalar_t g_i = sdf.d;
+
+        y.segment(i*3,3) << lam_i,
+                            g_i,
+                           -g_i*lam_i;
     }
 };
 
-// initial constraints
+// ------------------------------ Initial constraint ---------------------------
 ad_function_with_param_t pushboxInitialConstraints = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
     y.resize(3);
     y.segment(0, 3) << x[0] - p[0], x[1] - p[1], x[2] - p[2];
 };
 
-// cost function for pushbox
+// --------------------------------- Objective ---------------------------------
 ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
     y.resize(1);
-    y[0] = 0.0;
     ad_scalar_t tracking_cost(0.0);
     ad_scalar_t control_cost(0.0);
+
     for (size_t i = 0; i < N; ++i) {
-        size_t idx = i * (num_state + num_control);
-        // Extract state and control for current and next time steps
-        ad_scalar_t px_i    = x[idx + 0];
-        ad_scalar_t py_i    = x[idx + 1];
-        ad_scalar_t th_i    = x[idx + 2];
-        ad_scalar_t cx_i    = x[idx + 3];
-        ad_scalar_t cy_i    = x[idx + 4];
-        ad_scalar_t lam_i   = x[idx + 5];
+        const size_t idx = i * (num_state + num_control);
+        ad_scalar_t px_i  = x[idx + 0];
+        ad_scalar_t py_i  = x[idx + 1];
+        ad_scalar_t th_i  = x[idx + 2];
+        ad_scalar_t lam_i = x[idx + 5];
 
         ad_matrix_t Q(num_state, num_state);
-        Q.setZero();
-        Q(0, 0) = 100;
-        Q(1, 1) = 100;
-        Q(2, 2) = 100;
-        ad_matrix_t R(1, 1);
-        R.setZero();
-        R(0, 0) = 0.001;
+        Q.setZero(); Q(0,0)=100; Q(1,1)=100; Q(2,2)=100;
 
+        // terminal tracking
         if (i == N - 1) {
             ad_vector_t tracking_error(num_state);
-
             tracking_error << px_i - p[0], py_i - p[1], th_i - p[2];
             tracking_cost += tracking_error.transpose() * Q * tracking_error;
         }
 
+        // control effort (through λ)
         if (i < N - 1) {
-            ad_vector_t control_error(1);
-            control_error << lam_i;
-            control_cost += control_error.transpose() * R * control_error;
+            control_cost += ad_scalar_t(0.001) * lam_i * lam_i;
         }
     }
     y[0] = tracking_cost + control_cost;
 };
 
-int main(){
-    size_t variableNum = N * (num_state + num_control);
+// ---------------------------------- Main -------------------------------------
+int main() {
+    const size_t variableNum = N * (num_state + num_control);
     std::string problemName = "PushboxSDF";
     std::string folderName = "model";
     OptimizationProblem pushboxProblem(variableNum, problemName);
 
-    auto obj = std::make_shared<ObjectiveFunction>(variableNum, num_state, problemName, folderName, "pushboxObjective", pushboxObjective);
-    auto dynamics = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxDynamicConstraints", pushboxDynamicConstraints);
-    auto contact = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxContactConstraints", pushboxContactConstraints);
-    auto initial = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "pushboxInitialConstraints", pushboxInitialConstraints);
+    auto obj      = std::make_shared<ObjectiveFunction>(variableNum, num_state, problemName, folderName, "pushboxObjective",           pushboxObjective);
+    auto dynamics = std::make_shared<ConstraintFunction>(variableNum,          problemName, folderName, "pushboxDynamicConstraints",  pushboxDynamicConstraints);
+    auto contact  = std::make_shared<ConstraintFunction>(variableNum,          problemName, folderName, "pushboxContactConstraints",  pushboxContactConstraints);
+    auto initial  = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "pushboxInitialConstraints", pushboxInitialConstraints);
     // ---------------------- ! the above four lines are enough for generate the auto-differentiation functions library for this problem and the usage in python ! ---------------------- //
-    
+
     pushboxProblem.addObjective(obj);
     pushboxProblem.addEqualityConstraint(dynamics);
     pushboxProblem.addEqualityConstraint(initial);
     pushboxProblem.addInequalityConstraint(contact);
 
-    // problem parameters
+    // parameters
     vector_t xInitialStates(num_state);
     vector_t xFinalStates(num_state);
     vector_t xInitialGuess(variableNum);
     vector_t xOptimal(variableNum);
-    // define a theta from 0 to 2pi, and define different final state for the problem with equal interval, for example 20 degree
+
     xInitialStates << 0, 0, 0;
-    // set zero initial guess
     xInitialGuess.setZero();
+
     SolverParameters params;
     SolverInterface solver(pushboxProblem, params);
-    // solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
+
     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
-    solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-3));
+    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e10));
+    solver.setHyperParameters("trailTol",       vector_t::Constant(1, 1e-3));
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-3));
-    solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
+    solver.setHyperParameters("WeightedMode",   vector_t::Constant(1, 1));
+
+    // choose a final target on a circle
     size_t num_segments = 18;
-        scalar_t theta = 12 * 2 * M_PI / num_segments;
-        xFinalStates << 2*cos(theta), 2*sin(theta), theta;
-        solver.setProblemParameters("pushboxObjective", xFinalStates);
-        solver.initialize(xInitialGuess);
-        solver.solve();
-        xOptimal = solver.getSolution();
+    scalar_t theta = 12 * 2 * M_PI / num_segments;
+    xFinalStates << 2*std::cos(theta), 2*std::sin(theta), theta;
+    solver.setProblemParameters("pushboxObjective", xFinalStates);
 
-        std::ofstream log(PROJECT_ROOT / "examples/pushbox/results/results_pushbox_sdf_AD.csv");
-        for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
-        log.close();                              
+    solver.initialize(xInitialGuess);
+    solver.solve();
+    xOptimal = solver.getSolution();
 
-    }
-
+    std::ofstream log(PROJECT_ROOT / "examples/pushbox/results/results_pushbox_sdf_rounded.csv");
+    for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
+    log.close();
+}
 

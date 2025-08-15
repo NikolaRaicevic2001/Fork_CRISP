@@ -12,17 +12,16 @@ b = 0.05                        # half height of the box
 dt = 0.02                       # time step (20 ms) 
 N  = 100                        # number of time steps
 num_state   = 3                 # STATE  (3) : [px, py, θ]
-example_name = "pushbox"        # "pushbox" or "pushbox_sdf"
-gradient_method = "None"
+example_name = "pushbox_sdf"        # "pushbox" or "pushbox_sdf"
 
 if example_name == "pushbox":
-    gradient_method = "AD"
+    method = "AD"
     num_control = 6             # CONTROL (6) : [cx, cy, λ1-λ4]  (cx, cy plotted)
-    csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}_{gradient_method}.csv" 
+    csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}_{method}.csv" 
 elif example_name == "pushbox_sdf":
-    gradient_method = "FD"      # gradient method for SDF: "AD" or "FD"
+    method = "rounded"
     num_control = 3             # CONTROL (3) : [cx, cy, λ]  (cx, cy plotted)
-    csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}_{gradient_method}.csv" 
+    csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}_{method}.csv" 
 
 # Goal configuration (in world frame)
 num_segments    = 18            # number of segments for the goal circle
@@ -62,7 +61,7 @@ ax[2].set_ylabel("contact forces")
 ax[2].legend()
 
 fig.tight_layout()
-fig.savefig(f"results/figures_{example_name}_{gradient_method}.png", dpi=100, bbox_inches='tight')
+fig.savefig(f"results/figures_{example_name}_{method}.png", dpi=100, bbox_inches='tight')
 
 # ---------- SIMPLE CARTOON ANIMATION ----------
 fig2, ax2 = plt.subplots(figsize=(7, 5))
@@ -97,6 +96,6 @@ def frame(k):
     return box, center, contact_points, goal
 
 ani = FuncAnimation(fig2, frame, frames=N, interval=dt*1000, blit=True)
-ani.save(f"results/animation_{example_name}_{gradient_method}.gif", writer='pillow', fps=1/dt, dpi=100)
+ani.save(f"results/animation_{example_name}_{method}.gif", writer='pillow', fps=1/dt, dpi=100)
 
 plt.show()

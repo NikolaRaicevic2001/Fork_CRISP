@@ -6,11 +6,11 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import TwoSlopeNorm
 
 # ------------------------------- CONFIG --------------------------------------
-CSV_FILENAME    = "rounded_box_sdf_0p050_0p050_r_0p010.csv"  # file in results/
+CSV_FILENAME    = "rounded_box_sdf_0p500_0p300_r_0p100.csv"  # file in results/
 QUIVER_STEP     = 20                                         # subsample for quiver (larger = fewer arrows)
 QUIVER_SCALE    = 40.0                                       # tweak arrow length
 
-USE_COLORMAP    = False                                     
+USE_COLORMAP    = True                                     
 COLORMAP        = "coolwarm"                                # e.g., "RdBu_r", "seismic", "turbo", "viridis"
 N_LEVELS        = 25                                        # number of levels (odd is nice to include 0)
 # -----------------------------------------------------------------------------

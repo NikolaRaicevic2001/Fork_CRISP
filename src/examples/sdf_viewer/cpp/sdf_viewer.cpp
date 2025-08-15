@@ -3,8 +3,8 @@
 #include <iomanip>
 #include <filesystem>
 #include <Eigen/Core>
-#include "sdf/RoundBox.h"  
 
+#include "sdf/RoundBox.h"  
 
 int main(int argc, char** argv) {
     using T  = double;
@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
 
             // Use rounded SDF; "box" is just r=0
             const T rr = (shape == "box") ? T(0) : r;
-            const auto sdg = CRISP::sdf::sdgBoxRounded<T>(p, half, rr);
+            const auto sdg = CRISP::sdf::sdfBoxRounded<T>(p, half, rr);
 
             csv << x << "," << y << "," << sdg.d << "," << sdg.n.x() << "," << sdg.n.y() << "\n";
         }
