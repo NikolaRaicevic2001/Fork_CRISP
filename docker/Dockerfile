@@ -23,6 +23,7 @@ RUN apt update && apt install -y \
 # Install Python dependencies
 RUN python3 -m pip install --no-cache-dir \
     matplotlib==3.5.3 \
+    pandas \
     pyqt5
 
 # Set the working directory

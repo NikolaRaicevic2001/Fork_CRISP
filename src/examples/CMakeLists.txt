@@ -38,3 +38,8 @@ add_executable(pushT_example pushT/SolvePushT.cpp)
 target_link_libraries(pushT_example
   CRISP
 )
+
+add_executable(sdf_viewer_example sdf_viewer/cpp/sdf_viewer.cpp)
+target_link_libraries(sdf_viewer_example
+  CRISP
+)

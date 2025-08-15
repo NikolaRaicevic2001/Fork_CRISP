@@ -48,7 +48,7 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t theta_dot   = (1/(mu*m*g*c*r))*(-cy_i*(lambda2_i + lambda4_i) + cx_i*(lambda1_i + lambda3_i));
 
         // Explicit State Update
-        y.segment(i * num_state, num_state) << px_next - px_i - px_dot * dt,
+        y.segment(i * num_state, num_state) <<  px_next - px_i - px_dot * dt,
                                                 py_next - py_i - py_dot * dt,
                                                 theta_next - theta_i - theta_dot * dt;
     }

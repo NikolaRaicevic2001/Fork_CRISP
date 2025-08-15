@@ -22,9 +22,6 @@ const size_t num_control = 3;       // CONTROL (3) : [cx, cy, λ ]
 // Global variables for the problem
 static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();    
 
-// Signed distance
-#include <cppad/cppad.hpp>   // already pulled in via BasicTypes.h
-
 /* ---------- exact SDF of an axis–aligned box -------------------- */
 template<class T>
 inline T sdfBox(const Eigen::Matrix<T,2,1>& p, const Eigen::Matrix<T,2,1>& half)
@@ -104,6 +101,9 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t py_next     = x[idx + (num_state + num_control) + 1];
         ad_scalar_t theta_next  = x[idx + (num_state + num_control) + 2];
 
+        // auto sdg = sdgBoxRounded<ad_scalar_t>(Eigen::Matrix<ad_scalar_t,2,1>(cx_i, cy_i), Eigen::Matrix<ad_scalar_t,2,1>(a, b), ad_scalar_t(0.01));
+        // auto g_i = sdg.d;
+        // auto n_i = sdg.n;   
         auto g_i = sdfBox(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), Eigen::Matrix<ad_scalar_t,2,1>(a,b));
         auto n_i = sdfBox_Grad(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), Eigen::Matrix<ad_scalar_t,2,1>(a,b));
         
@@ -117,10 +117,9 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t th_dot  =  torque_z / (mu * m * g * c * r);
 
         // Explicit State Update
-        y.segment(i * num_state, num_state) << 
-                                px_next - px_i - px_dot * dt, 
-                                py_next - py_i - py_dot * dt, 
-                                theta_next - th_i - th_dot * dt;
+        y.segment(i * num_state, num_state) <<  px_next - px_i - px_dot * dt, 
+                                                py_next - py_i - py_dot * dt, 
+                                                theta_next - th_i - th_dot * dt;
     }
 };
 
@@ -203,8 +202,8 @@ int main(){
     auto dynamics = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxDynamicConstraints", pushboxDynamicConstraints);
     auto contact = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxContactConstraints", pushboxContactConstraints);
     auto initial = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "pushboxInitialConstraints", pushboxInitialConstraints);
-
     // ---------------------- ! the above four lines are enough for generate the auto-differentiation functions library for this problem and the usage in python ! ---------------------- //
+    
     pushboxProblem.addObjective(obj);
     pushboxProblem.addEqualityConstraint(dynamics);
     pushboxProblem.addEqualityConstraint(initial);
