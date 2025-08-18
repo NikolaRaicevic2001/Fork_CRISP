@@ -67,6 +67,8 @@ int main(int argc, char** argv) {
                 sdg = CRISP::sdf::sdfBoxRoundedSmooth<T>(p, half, r); 
             } else if (shape == "rounded") {
                 sdg = CRISP::sdf::sdfBoxRounded<T>(p, half, r);
+            } else if (shape == "round"){
+                sdg = CRISP::sdf::sdfBoxRound<T>(p, half, r);
             } else {
                 std::cerr << "ERROR: unknown shape '" << shape << "'\n";
                 return 1;

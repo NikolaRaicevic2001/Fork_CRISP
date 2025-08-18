@@ -1,9 +1,10 @@
 #include "solver_core/SolverInterface.h"
 #include "sdf/RoundBox.h"
 
-#include <chrono>
-#include <filesystem>
 #include <cmath>              // use <cmath>, not <math.h>
+#include <chrono>
+#include <iomanip>
+#include <filesystem>
 #include <cppad/cppad.hpp>    // for CppAD::cos/sin with AD
 
 using namespace CRISP;
@@ -26,8 +27,8 @@ const scalar_t theta = 12 * 2 * M_PI / num_segments;
 
 // SDF rounding radius (meters)
 constexpr scalar_t ROUND_R = 0.01;
-constexpr scalar_t EPS_COMP = 1e-5;
-constexpr scalar_t W_PENETRATION = 1e1;
+constexpr scalar_t EPS_COMP = 1e-9;
+constexpr scalar_t W_PENETRATION = 1e-3;
 
 // Global variables for the problem
 static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();
@@ -84,8 +85,7 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
 };
 
 // ----------------------- Contact-implicit constraints ------------------------
-ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& y)
-{
+ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& y){
     using V2ad = Eigen::Matrix<ad_scalar_t,2,1>;
     V2ad half; half << ad_scalar_t(a), ad_scalar_t(b);
 
@@ -104,9 +104,9 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
         const auto sdf = CRISP::sdf::sdfBoxRoundedSmooth<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
         const ad_scalar_t g_i = sdf.d;
         
-        y.segment(i*3,3) << lam_i,      // λ ≥ 0  
-                            g_i,        // g ≥ 0  
-                           ad_scalar_t(EPS_COMP) - g_i*lam_i;  // ad_scalar_t(EPS_COMP) - g_i*lam_i;  // ε - λg ≥ 0  (relaxed complementarity)
+        y.segment(i*3,3) << lam_i,                              // λ ≥ 0  
+                            g_i,                                // g ≥ 0  
+                           ad_scalar_t(EPS_COMP) - g_i*lam_i;   // ad_scalar_t(EPS_COMP) - g_i*lam_i;  // ε - λg ≥ 0  (relaxed complementarity)
     }
 };
 
@@ -165,7 +165,7 @@ int main() {
     std::string folderName = "model";
     OptimizationProblem pushboxProblem(variableNum, problemName);
 
-    auto obj      = std::make_shared<ObjectiveFunction>(variableNum, num_state, problemName, folderName, "pushboxObjective",           pushboxObjective);
+    auto obj      = std::make_shared<ObjectiveFunction>(variableNum, num_state, problemName, folderName, "pushboxObjective",          pushboxObjective);
     auto dynamics = std::make_shared<ConstraintFunction>(variableNum,          problemName, folderName, "pushboxDynamicConstraints",  pushboxDynamicConstraints);
     auto contact  = std::make_shared<ConstraintFunction>(variableNum,          problemName, folderName, "pushboxContactConstraints",  pushboxContactConstraints);
     auto initial  = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "pushboxInitialConstraints", pushboxInitialConstraints);
@@ -192,16 +192,67 @@ int main() {
         xInitialGuess[idx + 0] = alpha * (2*std::cos(theta));   // px
         xInitialGuess[idx + 1] = alpha * (2*std::sin(theta));   // py
         xInitialGuess[idx + 2] = alpha * theta;                 // th
-        xInitialGuess[idx + 3] = a;   // cx on right face
-        xInitialGuess[idx + 4] = 0;   // cy
-        xInitialGuess[idx + 5] = 0;   // λ
+        xInitialGuess[idx + 3] = a + 0.01;                      // cx on right face
+        xInitialGuess[idx + 4] = 0;                             // cy
+        xInitialGuess[idx + 5] = 0;                             // λ
+    }
+
+    /* 1) Save full contact Jacobian as a dense CSV (rows x cols) */
+    {
+        // J is likely Eigen::SparseMatrix<double>
+        auto J = contact->getGradient(xInitialGuess);
+
+        // Densify for easy CSV writing
+        Eigen::MatrixXd JD = Eigen::MatrixXd(J);
+
+        const std::filesystem::path out = PROJECT_ROOT / "examples/pushbox/results/results_pushbox_sdf_rounded_contact_gradients.csv";
+        std::ofstream os(out);
+        os << std::setprecision(17);
+
+        // optional header with sizes
+        os << "# rows=" << JD.rows() << ", cols=" << JD.cols() << "\n";
+
+        for (Eigen::Index r = 0; r < JD.rows(); ++r) {
+            for (Eigen::Index c = 0; c < JD.cols(); ++c) {
+                os << JD(r,c);
+                if (c + 1 < JD.cols()) os << ',';
+            }
+            os << '\n';
+        }
+        os.close();
+    }
+
+    /* 2) Save SDF gradients (unit outward normals) for each knot's (cx,cy) */
+    {
+        using V2d = Eigen::Matrix<double,2,1>;
+        const V2d half_d(a, b);
+
+        const std::filesystem::path out = PROJECT_ROOT / "examples/pushbox/results/results_pushbox_sdf_rounded_sdf_gradients.csv";
+        std::ofstream os(out);
+        os << std::setprecision(17);
+        os << "i,cx,cy,nx,ny\n";
+
+        for (size_t i = 0; i < N; ++i) {
+            const size_t idx = i * (num_state + num_control);
+            const double cx  = static_cast<double>(xInitialGuess[idx + 3]);
+            const double cy  = static_cast<double>(xInitialGuess[idx + 4]);
+
+            const V2d p(cx, cy);
+
+            // Choose the same SDF you use in the constraints for a fair comparison:
+            // const auto sdg = CRISP::sdf::sdfBoxRound<double>(p, half_d, double(ROUND_R));
+            const auto sdg = CRISP::sdf::sdfBoxRoundedSmooth<double>(p, half_d, double(ROUND_R));
+
+            os << i << ',' << cx << ',' << cy << ',' << sdg.n.x() << ',' << sdg.n.y() << '\n';
+        }
+        os.close();
     }
 
     SolverParameters params;
     SolverInterface solver(pushboxProblem, params);
 
     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
-    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e10));
+    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e8));
     solver.setHyperParameters("trailTol",       vector_t::Constant(1, 1e-3));
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-3));
     solver.setHyperParameters("WeightedMode",   vector_t::Constant(1, 1));

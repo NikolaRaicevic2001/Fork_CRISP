@@ -11,11 +11,18 @@
 
 // Dependencies
 #include <type_traits>
+#include <cmath>
 #include <Eigen/Core>
 #include <cppad/cppad.hpp>
 
 namespace CRISP { namespace sdf {
 // ------------------------ Small utilities ------------------------------------
+template<class T>
+struct Sdf2D {
+    T d;                                  // signed distance (>=0 outside)
+    Eigen::Matrix<T,2,1> n;               // unit outward normal (‖n‖ = 1)
+};
+
 // Detect CppAD AD types
 template<class T> struct is_ad : std::false_type {};
 template<class Base> struct is_ad< CppAD::AD<Base> > : std::true_type {};
@@ -50,12 +57,6 @@ inline T ad_sqrt(const T& x) {
 }
 
 template<class T>
-struct Sdf2D {
-    T d;                                  // signed distance (>=0 outside)
-    Eigen::Matrix<T,2,1> n;               // unit outward normal (‖n‖ = 1)
-};
-
-template<class T>
 inline T clamp_ad(const T& x, const T& lo, const T& hi) {
     T x1 = cexp_lt(x, lo, lo, x);
     return cexp_gt(x1, hi, hi, x1);
@@ -64,6 +65,11 @@ inline T clamp_ad(const T& x, const T& lo, const T& hi) {
 template<class T>
 inline T max_ad(const T& a, const T& b) {
     return cexp_gt(a, b, a, b);
+}
+
+template<class T>
+inline T min_ad(const T& a, const T& b){ 
+    return cexp_lt(a,b,a,b); 
 }
 
 template<class T>
@@ -236,4 +242,86 @@ inline Sdf2D<T> sdfBoxRoundedSmooth(const Eigen::Matrix<T,2,1>& p,
 
     return { d, n };
 }
+
+// ---------------- Round Box : distance + normal -------------------
+// Rounded box via corner mapping (Inigo Quilez method), uniform radius.
+// p    : query point
+// half : (hx,hy) half lengths of AABB centered at origin
+// r_in : corner radius (clamped to [0, min(hx,hy)])
+// eps  : small guard to avoid 0/0; tune ~1e-12..1e-8 depending on scale
+template<class T>
+inline Sdf2D<T> sdfBoxRound(const Eigen::Matrix<T,2,1>& p,
+                            const Eigen::Matrix<T,2,1>& half,
+                            const T& r_in,
+                            const T eps = T(1e-12))
+{
+    const T zero = T(0), one = T(1);
+    const T s2   = T(std::sqrt(2.0));
+
+    // clamp radius
+    T rmax = min_ad(half.x(), half.y());
+    T r    = clamp_ad(r_in, zero, rmax);
+
+    // reflect to first quadrant
+    T sx = cexp_ge(p.x(), zero, one, T(-1));
+    T sy = cexp_ge(p.y(), zero, one, T(-1));
+    T ax = ad_abs(p.x());
+    T ay = ad_abs(p.y());
+
+    // q = |p| - b + r
+    T qx = ax - (half.x() - r);
+    T qy = ay - (half.y() - r);
+
+    // inside side-strips?
+    T mn = min_ad(qx, qy);
+    T mx = max_ad(qx, qy);
+    T is_side = cexp_lt(mn, zero, one, zero);  // 1 if min(qx,qy)<0 else 0
+
+    // ---------- SIDE REGION ----------
+    // distance = max(qx,qy) - r
+    T d_side = mx - r;
+
+    // normal along dominant axis, reflected
+    T pickX  = cexp_gt(qx, qy, one, zero);
+    T nx_s   = sx * pickX;
+    T ny_s   = sy * (one - pickX);
+
+    // ---------- CORNER REGION ----------
+    // map to (u,v) in rotated/normalized corner frame
+    T sdiff  = qx - qy;
+    T sgn    = cexp_ge(sdiff, zero, one, T(-1));  // sign(qx - qy)
+    T u      = ad_abs(sdiff) / r;                 // u = |qx - qy| / r
+    T v      = (qx + qy - r) / r;                 // v = (qx+qy - r)/r
+
+    // circle corner: center (0,-1), radius sqrt(2)
+    T Luv    = safe_norm2(u, v + one, eps);
+    T d_corner_unit = Luv - s2;                   // SDF in uv-space
+    T d_corner = d_corner_unit * s2 * r;          // scale back
+
+    // grad in uv: ∂f/∂u, ∂f/∂v
+    T gu = u / Luv;
+    T gv = (v + one) / Luv;
+
+    // chain to q: ∂u/∂qx =  sgn/r, ∂u/∂qy = -sgn/r;  ∂v/∂qx=1/r, ∂v/∂qy=1/r
+    T dd_qx = s2 * ( gu * ( sgn / r ) + gv * ( one / r ) );
+    T dd_qy = s2 * ( gu * (-sgn / r ) + gv * ( one / r ) );
+
+    // chain to p: ∂|p|/∂p = sign(p)
+    T nx_c = sx * dd_qx;
+    T ny_c = sy * dd_qy;
+
+    // ---------- Select region ----------
+    T d = cexp_gt(is_side, zero, d_side, d_corner);
+
+    Eigen::Matrix<T,2,1> n;
+    n.x() = cexp_gt(is_side, zero, nx_s, nx_c);
+    n.y() = cexp_gt(is_side, zero, ny_s, ny_c);
+
+    // normalize (safety)
+    T nn = safe_norm2(n.x(), n.y(), eps);
+    n.x() /= nn; n.y() /= nn;
+
+    return { d, n };
+}
+
 }} // namespace CRISP::sdf
