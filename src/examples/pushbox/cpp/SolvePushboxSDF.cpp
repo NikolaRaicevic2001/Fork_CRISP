@@ -26,8 +26,8 @@ const scalar_t theta = 12 * 2 * M_PI / num_segments;
 
 // SDF rounding radius (meters)
 constexpr scalar_t ROUND_R = 0.01;
-constexpr scalar_t EPS_COMP = 1e-4;
-constexpr scalar_t W_PENETRATION = 1e3;
+constexpr scalar_t EPS_COMP = 1e-5;
+constexpr scalar_t W_PENETRATION = 1e1;
 
 // Global variables for the problem
 static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();
@@ -60,7 +60,7 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t theta_next  = x[idx + (num_state + num_control) + 2];
 
         V2ad p_i; p_i << cx_i, cy_i;
-        const auto sdf = CRISP::sdf::sdfBoxRounded<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
+        const auto sdf = CRISP::sdf::sdfBoxRoundedSmooth<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
         const V2ad        n_i = -sdf.n;
 
         const ad_scalar_t cth = CppAD::cos(th_i);
@@ -101,7 +101,7 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t lam_i = x[idx + 5];
 
         V2ad p_i; p_i << cx_i, cy_i;
-        const auto sdf = CRISP::sdf::sdfBoxRounded<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
+        const auto sdf = CRISP::sdf::sdfBoxRoundedSmooth<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
         const ad_scalar_t g_i = sdf.d;
         
         y.segment(i*3,3) << lam_i,      // λ ≥ 0  
@@ -138,7 +138,7 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
         Q.setZero(); Q(0,0)=100; Q(1,1)=100; Q(2,2)=100;
 
         V2ad p_i; p_i << cx_i, cy_i;
-        auto sdf = CRISP::sdf::sdfBoxRounded<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
+        auto sdf = CRISP::sdf::sdfBoxRoundedSmooth<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
         ad_scalar_t g_i = sdf.d;
         ad_scalar_t pen = pospart(-g_i);
         tracking_cost += ad_scalar_t(W_PENETRATION) * pen * pen;
