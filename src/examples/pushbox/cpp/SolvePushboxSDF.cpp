@@ -14,18 +14,28 @@ const scalar_t b = 0.05;
 const scalar_t m = 1;
 const scalar_t mu = 0.5;
 const scalar_t g = 9.8;
-const scalar_t R_box = std::sqrt(a * a + b * b);    // renamed from r -> R_box
-const scalar_t c_inertia = 0.4;                     // renamed from c -> c_inertia
+const scalar_t r = std::sqrt(a * a + b * b);    
+const scalar_t c = 0.4;                     
 const scalar_t dt = 0.02;
 const size_t N = 100;                               // number of time steps
 const size_t num_state = 3;                         // STATE  (3) : [px, py, θ]
 const size_t num_control = 3;                       // CONTROL (3) : [cx, cy, λ ]
 
+const size_t num_segments = 18;
+const scalar_t theta = 12 * 2 * M_PI / num_segments;
+
 // SDF rounding radius (meters)
 constexpr scalar_t ROUND_R = 0.01;
+constexpr scalar_t EPS_COMP = 1e-4;
+constexpr scalar_t W_PENETRATION = 1e3;
 
 // Global variables for the problem
 static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();
+
+// -------------------------- Helper Functions ---------------------------------
+static inline ad_scalar_t pospart(const ad_scalar_t& z) {
+    return CppAD::CondExpGt(z, ad_scalar_t(0), z, ad_scalar_t(0));
+}
 
 // -------------------------- Dynamics constraints -----------------------------
 ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
@@ -37,7 +47,7 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
     y.resize((N - 1) * num_state);
     for (size_t i = 0; i < N - 1; ++i) {
         const size_t idx = i * (num_state + num_control);
-
+        // Extract state and control for current and next time steps
         ad_scalar_t px_i    = x[idx + 0];
         ad_scalar_t py_i    = x[idx + 1];
         ad_scalar_t th_i    = x[idx + 2];
@@ -49,11 +59,8 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t py_next     = x[idx + (num_state + num_control) + 1];
         ad_scalar_t theta_next  = x[idx + (num_state + num_control) + 2];
 
-        // Build contact point p_i safely
         V2ad p_i; p_i << cx_i, cy_i;
-
         const auto sdf = CRISP::sdf::sdfBoxRounded<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
-        const ad_scalar_t g_i = sdf.d;
         const V2ad        n_i = -sdf.n;
 
         const ad_scalar_t cth = CppAD::cos(th_i);
@@ -64,7 +71,7 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
         const ad_scalar_t torque_z = lam_i * (cx_i*n_i.y() - cy_i*n_i.x());
 
         const ad_scalar_t denom_lin = ad_scalar_t(mu * m * g);
-        const ad_scalar_t denom_ang = ad_scalar_t(mu * m * g * c_inertia * R_box);
+        const ad_scalar_t denom_ang = ad_scalar_t(mu * m * g * c * r);
 
         const ad_scalar_t px_dot  = Fx / denom_lin;
         const ad_scalar_t py_dot  = Fy / denom_lin;
@@ -86,18 +93,20 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
     for (size_t i=0; i<N-1; ++i)
     {
         const size_t idx = i*(num_state+num_control);
+        ad_scalar_t px_i = x[idx + 0];
+        ad_scalar_t py_i = x[idx + 1];
+        ad_scalar_t theta_i = x[idx + 2];
         ad_scalar_t cx_i  = x[idx + 3];
         ad_scalar_t cy_i  = x[idx + 4];
         ad_scalar_t lam_i = x[idx + 5];
 
         V2ad p_i; p_i << cx_i, cy_i;
-
         const auto sdf = CRISP::sdf::sdfBoxRounded<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
         const ad_scalar_t g_i = sdf.d;
-
-        y.segment(i*3,3) << lam_i,
-                            g_i,
-                           -g_i*lam_i;
+        
+        y.segment(i*3,3) << lam_i,      // λ ≥ 0  
+                            g_i,        // g ≥ 0  
+                           ad_scalar_t(EPS_COMP) - g_i*lam_i;  // ad_scalar_t(EPS_COMP) - g_i*lam_i;  // ε - λg ≥ 0  (relaxed complementarity)
     }
 };
 
@@ -109,7 +118,10 @@ ad_function_with_param_t pushboxInitialConstraints = [](const ad_vector_t& x, co
 
 // --------------------------------- Objective ---------------------------------
 ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
+    using V2ad = Eigen::Matrix<ad_scalar_t,2,1>;
     y.resize(1);
+    y[0] = 0.0;
+    V2ad half; half << ad_scalar_t(a), ad_scalar_t(b);
     ad_scalar_t tracking_cost(0.0);
     ad_scalar_t control_cost(0.0);
 
@@ -118,10 +130,18 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
         ad_scalar_t px_i  = x[idx + 0];
         ad_scalar_t py_i  = x[idx + 1];
         ad_scalar_t th_i  = x[idx + 2];
+        ad_scalar_t cx_i = x[idx + 3];
+        ad_scalar_t cy_i = x[idx + 4];
         ad_scalar_t lam_i = x[idx + 5];
 
         ad_matrix_t Q(num_state, num_state);
         Q.setZero(); Q(0,0)=100; Q(1,1)=100; Q(2,2)=100;
+
+        V2ad p_i; p_i << cx_i, cy_i;
+        auto sdf = CRISP::sdf::sdfBoxRounded<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
+        ad_scalar_t g_i = sdf.d;
+        ad_scalar_t pen = pospart(-g_i);
+        tracking_cost += ad_scalar_t(W_PENETRATION) * pen * pen;
 
         // terminal tracking
         if (i == N - 1) {
@@ -163,7 +183,19 @@ int main() {
     vector_t xOptimal(variableNum);
 
     xInitialStates << 0, 0, 0;
+
+    // Setting initial guess
     xInitialGuess.setZero();
+    for (size_t i = 0; i < N; ++i) {
+        const size_t idx = i * (num_state + num_control);
+        const scalar_t alpha = static_cast<scalar_t>(i) / static_cast<scalar_t>(N-1);
+        xInitialGuess[idx + 0] = alpha * (2*std::cos(theta));   // px
+        xInitialGuess[idx + 1] = alpha * (2*std::sin(theta));   // py
+        xInitialGuess[idx + 2] = alpha * theta;                 // th
+        xInitialGuess[idx + 3] = a;   // cx on right face
+        xInitialGuess[idx + 4] = 0;   // cy
+        xInitialGuess[idx + 5] = 0;   // λ
+    }
 
     SolverParameters params;
     SolverInterface solver(pushboxProblem, params);
@@ -175,8 +207,6 @@ int main() {
     solver.setHyperParameters("WeightedMode",   vector_t::Constant(1, 1));
 
     // choose a final target on a circle
-    size_t num_segments = 18;
-    scalar_t theta = 12 * 2 * M_PI / num_segments;
     xFinalStates << 2*std::cos(theta), 2*std::sin(theta), theta;
     solver.setProblemParameters("pushboxObjective", xFinalStates);
 

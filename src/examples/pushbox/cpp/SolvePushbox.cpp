@@ -7,7 +7,7 @@
 
 using namespace CRISP;
 
-// Define model model parameters for pushbox
+// Define model parameters for pushbox
 const scalar_t a = 0.05;
 const scalar_t b = 0.05;
 const scalar_t m = 1;
@@ -188,7 +188,6 @@ int main(){
     xInitialGuess.setZero();
     SolverParameters params;
     SolverInterface solver(pushboxProblem, params);
-    // solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
     solver.setHyperParameters("muMax", vector_t::Constant(1, 1e10));
     solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-3));

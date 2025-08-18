@@ -82,18 +82,18 @@ print(f"[pyCRISP] Problem {problemName} created with {variableNum} variables and
 solver.set_problem_parameters("pushcircleObjective", xf)               
 solver.set_problem_parameters("pushcircleInitialConstraints", x0)
 print(f"[pyCRISP] Problem parameters set with initial states {x0} and final states {xf}.")
-# solver.set_hyper_parameters("maxIterations", np.array([1000]))              # maximum number of iterations for the outer loop
+solver.set_hyper_parameters("maxIterations", np.array([1000]))              # maximum number of iterations for the outer loop
 # solver.set_hyper_parameters("trustRegionInitRadius", np.array([1.0]))       # initial trust region radius
 # solver.set_hyper_parameters("trustRegionMaxRadius", np.array([10.0]))       # maximum trust region radius
 # solver.set_hyper_parameters("mu", np.array([1e1]))                          # penalty parameter
 # solver.set_hyper_parameters("muMax", np.array([1e9]))                       # maximum penalty parameter
 # solver.set_hyper_parameters("etaLow", np.array([0.25]))                     # low threshold for reduction ratio
 # solver.set_hyper_parameters("etaHigh", np.array([0.75]))                    # high threshold for reduction ratio
-# solver.set_hyper_parameters("trailTol", np.array([1e-5]))                   # tolerance for the outer iterations
-# solver.set_hyper_parameters("trustRegionTol", np.array([1e-5]))             # tolerance for the trust region
+solver.set_hyper_parameters("trailTol", np.array([1e-3]))                   # tolerance for the outer iterations
+solver.set_hyper_parameters("trustRegionTol", np.array([1e-3]))             # tolerance for the trust region
 # solver.set_hyper_parameters("constraintTol", np.array([1e-7]))              # tolerance for the maximum constraints violation
 # solver.set_hyper_parameters("verbose", np.array([0]))                       # verbose level
-# solver.set_hyper_parameters("WeightedMode", np.array([0]))                  # 0: no weighted, 1: weighted
+solver.set_hyper_parameters("WeightedMode", np.array([1]))                  # 0: no weighted, 1: weighted
 # solver.set_hyper_parameters("WeightedTolFactor", np.array([10.0]))          # factor for the weighted mode
 # solver.set_hyper_parameters("secondOrderCorrection", np.array([1]))         # 0: no second order correction, 1: second order correction
 

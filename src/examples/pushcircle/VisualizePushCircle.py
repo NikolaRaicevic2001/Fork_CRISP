@@ -16,7 +16,7 @@ gradient_method  = "AD"         # "AD" or "FD" – only used in file-name
 csv_file = ( Path(__file__).resolve().parent / "results" / f"results_pushcircle_sdf_{gradient_method}.csv" )
 
 # goal configuration (in world frame)
-goal_state   = np.array([-1.0, -0.25])  
+goal_state   = np.array([1.0, 1.0])  
 
 # ──────── LOAD CSV ────────────────────────────────────────────────────────
 flat  = np.loadtxt(csv_file, dtype=float)
@@ -41,7 +41,6 @@ ax[1].legend()
 
 fig.tight_layout()
 fig.savefig(f"results/figures_pushcircle_{gradient_method}.png", dpi=120, bbox_inches='tight')
-
 
 # ──────── CARTOON ANIMATION ───────────────────────────────────────────────
 fig2, ax2 = plt.subplots(figsize=(7, 5))

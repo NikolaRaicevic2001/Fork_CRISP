@@ -12,7 +12,7 @@ b = 0.05                        # half height of the box
 dt = 0.02                       # time step (20 ms) 
 N  = 100                        # number of time steps
 num_state   = 3                 # STATE  (3) : [px, py, θ]
-example_name = "pushbox_sdf"        # "pushbox" or "pushbox_sdf"
+example_name = "pushbox_sdf"    
 
 if example_name == "pushbox":
     method = "AD"

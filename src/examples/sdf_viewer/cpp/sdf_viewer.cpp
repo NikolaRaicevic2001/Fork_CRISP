@@ -2,9 +2,11 @@
 #include <iostream>
 #include <iomanip>
 #include <filesystem>
+#include <algorithm>   // for std::replace
+#include <sstream>     // for std::ostringstream
 #include <Eigen/Core>
 
-#include "sdf/RoundBox.h"  
+#include "sdf/RoundBox.h"
 
 int main(int argc, char** argv) {
     using T  = double;
@@ -13,9 +15,9 @@ int main(int argc, char** argv) {
 
     // --- CLI params ----------------------------------------------------------
     // Usage: ./sdf_viewer [shape] [hx] [hy] [r]
-    // shape ∈ {"rounded_box","box"}; "box" is rounded with r=0
-    std::string shape = (argc > 1) ? argv[1] : "rounded_box";
-    T hx = 0.5, hy = 0.3, r = 0.1;    
+    // shape ∈ {"rounded","roundedsmooth"}
+    std::string shape = (argc > 1) ? argv[1] : "rounded";
+    T hx = 0.5, hy = 0.3, r = 0.1;
     if (argc > 3) { hx = std::atof(argv[2]); hy = std::atof(argv[3]); }
     if (argc > 4) { r  = std::atof(argv[4]); }
 
@@ -23,8 +25,10 @@ int main(int argc, char** argv) {
     const int W = 400, H = 400;
     const T xmin = -1.2, xmax = 1.2, ymin = -1.2, ymax = 1.2;
 
-    // --- Output path: --------------------------------------------------------
+    // --- Output path ---------------------------------------------------------
     const fs::path out_dir = fs::path(__FILE__).parent_path().parent_path() / "results";
+    std::error_code ec;
+    fs::create_directories(out_dir, ec);
     std::cout << "Output directory: " << out_dir << "\n";
 
     // number -> filename-friendly string (e.g., 0.5 -> "0p500")
@@ -36,9 +40,7 @@ int main(int argc, char** argv) {
         return s;
     };
 
-    std::string fname = shape + "_sdf_" + num(hx) + "_" + num(hy);
-    if (shape != "box") fname += "_r_" + num(r);
-    fname += ".csv";
+    std::string fname = shape + "_sdf_" + num(hx) + "_" + num(hy) + "_r_" + num(r) + ".csv";
     const fs::path out_csv = out_dir / fname;
 
     std::ofstream csv(out_csv);
@@ -49,17 +51,26 @@ int main(int argc, char** argv) {
     csv << std::setprecision(17);
     csv << "x,y,d,nx,ny\n";
 
+    // Precompute half once
+    const V2 half(hx, hy);
+
     // --- Sample SDF ----------------------------------------------------------
     for (int j = 0; j < H; ++j) {
         const T y = ymin + (ymax - ymin) * (T(j) / (H - 1));
         for (int i = 0; i < W; ++i) {
             const T x = xmin + (xmax - xmin) * (T(i) / (W - 1));
             const V2 p(x, y);
-            const V2 half(hx, hy);
 
-            // Use rounded SDF; "box" is just r=0
-            const T rr = (shape == "box") ? T(0) : r;
-            const auto sdg = CRISP::sdf::sdfBoxRounded<T>(p, half, rr);
+            CRISP::sdf::Sdf2D<T> sdg;
+
+            if (shape == "roundedsmooth") {
+                sdg = CRISP::sdf::sdfBoxRoundedSmooth<T>(p, half, r); 
+            } else if (shape == "rounded") {
+                sdg = CRISP::sdf::sdfBoxRounded<T>(p, half, r);
+            } else {
+                std::cerr << "ERROR: unknown shape '" << shape << "'\n";
+                return 1;
+            }
 
             csv << x << "," << y << "," << sdg.d << "," << sdg.n.x() << "," << sdg.n.y() << "\n";
         }

@@ -131,5 +131,109 @@ inline Sdf2D<T> sdfBoxRounded(const Eigen::Matrix<T,2,1>& p,
 
     return { d, n };
 }
-}} // namespace CRISP::sdf
 
+// ------------------------ Smooth helpers -------------------------------------
+template<class T>
+inline T ad_exp(const T& x){ if constexpr (is_ad<T>::value) return CppAD::exp(x); else return T(std::exp(double(x))); }
+template<class T>
+inline T ad_log(const T& x){ if constexpr (is_ad<T>::value) return CppAD::log(x); else return T(std::log(double(x))); }
+
+// softplusβ(x) = (1/β) * log(1 + exp(βx))
+template<class T>
+inline T softplus_beta(const T& x, const T& beta){
+    return ad_log( T(1) + ad_exp(beta*x) ) / beta;
+}
+
+// lseβ(a,b) = (1/β) * log( exp(βa) + exp(βb) )  ≈ max(a,b)
+template<class T>
+inline T lse2_beta(const T& a, const T& b, const T& beta){
+    return ad_log( ad_exp(beta*a) + ad_exp(beta*b) ) / beta;
+}
+
+// softmax weights for {a,b}
+template<class T>
+inline void softmax2_beta(const T& a, const T& b, const T& beta, T& wa, T& wb){
+    T ea = ad_exp(beta*a), eb = ad_exp(beta*b);
+    T sum = ea + eb;
+    wa = ea / sum; wb = eb / sum;
+}
+
+// logistic switch σβ(g)
+template<class T>
+inline T logistic_beta(const T& g, const T& beta){
+    return T(1) / ( T(1) + ad_exp(-beta*g) );
+}
+
+// smooth sign: x / sqrt(x^2 + δ^2)
+template<class T>
+inline T smooth_sign(const T& x, const T& delta){
+    return x / ad_sqrt(x*x + delta*delta);
+}
+
+// ---------------- Rounded Box (SMOOTH) : distance + normal -------------------
+// p    : query point (x,y)
+// half : box half-sizes (hx,hy)
+// r_in : corner radius (clamped to [0, min(hx,hy)])
+// eps  : small number to avoid 0/0 at corners/edges
+// β controls smoothness (bigger β = sharper, β→∞ = exact).
+template<class T>
+inline Sdf2D<T> sdfBoxRoundedSmooth(const Eigen::Matrix<T,2,1>& p,
+                                    const Eigen::Matrix<T,2,1>& half,
+                                    const T& r_in,
+                                    const T beta = T(40),         // smoothness
+                                    const T eps  = T(1e-12),      // numeric guard
+                                    const T sgn_eps = T(1e-12))   // for smooth sign
+{
+    const T zero = T(0), one = T(1);
+
+    // Clamp r to [0, min(hx,hy)]
+    T rmax = cexp_lt(half.x(), half.y(), half.x(), half.y());
+    T r    = clamp_ad(r_in, zero, rmax);
+
+    // |p| and reduced half-sizes
+    T ax = ad_abs(p.x());
+    T ay = ad_abs(p.y());
+    T hx = half.x() - r;
+    T hy = half.y() - r;
+
+    // distances to the rounded rectangle slabs
+    T wx = ax - hx;
+    T wy = ay - hy;
+
+    // Smooth versions of max and ReLU
+    T g   = lse2_beta(wx, wy, beta);                 // ≈ max(wx, wy)
+    T qx  = softplus_beta(wx, beta);                 // ≈ max(wx, 0)
+    T qy  = softplus_beta(wy, beta);                 // ≈ max(wy, 0)
+    T l   = safe_norm2(qx, qy, eps);                 // |q|
+
+    // Blend inside (slab) vs outside (circular fillet) with σβ(g)
+    T d_out = l - r;
+    T d_in  = g - r;
+    T H     = logistic_beta(g, beta);                // ~1 outside, ~0 inside
+    T d     = H * d_out + (one - H) * d_in;
+
+    // Smooth outward normal
+    // smooth signs to mirror to all quadrants (avoid kinks at p=0)
+    T sx = smooth_sign(p.x(), sgn_eps);
+    T sy = smooth_sign(p.y(), sgn_eps);
+
+    // outside: normal ~ q/|q|
+    T nx_out = sx * (qx / l);
+    T ny_out = sy * (qy / l);
+
+    // inside: soft-choose dominant slab direction
+    T wx_w, wy_w; softmax2_beta(wx, wy, beta, wx_w, wy_w);  // wx_w+wy_w=1
+    T nx_in = sx * wx_w;
+    T ny_in = sy * wy_w;
+
+    Eigen::Matrix<T,2,1> n;
+    n.x() = H * nx_out + (one - H) * nx_in;
+    n.y() = H * ny_out + (one - H) * ny_in;
+
+    // Final renormalization
+    T nn = safe_norm2(n.x(), n.y(), eps);
+    n.x() /= nn; n.y() /= nn;
+
+    return { d, n };
+}
+}} // namespace CRISP::sdf
