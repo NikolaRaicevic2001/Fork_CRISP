@@ -126,12 +126,12 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
     ad_scalar_t control_cost(0.0);
 
     for (size_t i = 0; i < N; ++i) {
-        const size_t idx = i * (num_state + num_control);
+        const size_t idx  = i * (num_state + num_control);
         ad_scalar_t px_i  = x[idx + 0];
         ad_scalar_t py_i  = x[idx + 1];
         ad_scalar_t th_i  = x[idx + 2];
-        ad_scalar_t cx_i = x[idx + 3];
-        ad_scalar_t cy_i = x[idx + 4];
+        ad_scalar_t cx_i  = x[idx + 3];
+        ad_scalar_t cy_i  = x[idx + 4];
         ad_scalar_t lam_i = x[idx + 5];
 
         ad_matrix_t Q(num_state, num_state);
@@ -204,7 +204,7 @@ int main() {
         Eigen::SparseMatrix<double> Js = contact->getGradient(xInitialGuess);
 
         // Prepare output
-        const auto out = PROJECT_ROOT / "examples/pushbox/results/results_pushbox__sdf_rounded_gradcheck.csv";
+        const auto out = PROJECT_ROOT / "examples/pushbox/results/results_pushbox_sdf_rounded_gradcheck.csv";
         std::ofstream os(out);
         os << std::setprecision(17);
         os << "i,cx,cy,jac_nx_raw,jac_ny_raw,jac_nx,jac_ny,sdf_nx,sdf_ny,dot,angle_deg\n";
