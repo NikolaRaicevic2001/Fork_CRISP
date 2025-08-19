@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import TwoSlopeNorm
 
 # ------------------------------- CONFIG --------------------------------------
-CSV_FILENAME  = "roundedsmooth_sdf_0p100_0p100_r_0p010.csv" # file in results/
+CSV_FILENAME  = "roundedsmooth_sdf_0p050_0p050_r_0p010.csv" # file in results/
 QUIVER_STEP   = 20
 QUIVER_SCALE  = 40.0
 COLORMAP      = "coolwarm"                                  # e.g., "RdBu_r", "seismic", "turbo", "viridis"
