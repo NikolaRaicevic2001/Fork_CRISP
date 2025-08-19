@@ -341,7 +341,7 @@ int main() {
     solver.setHyperParameters("muMax", vector_t::Constant(1, 1e12));
     solver.setHyperParameters("trailTol",       vector_t::Constant(1, 1e-5));
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
-    // solver.setHyperParameters("WeightedMode",   vector_t::Constant(1, 1));
+    solver.setHyperParameters("WeightedMode",   vector_t::Constant(1, 1));
 
     // choose a final target on a circle
     xFinalStates << 2*std::cos(theta), 2*std::sin(theta), theta;
