@@ -19,26 +19,4 @@ template<class T> inline Sdf2D<T> sdgCircle(const Eigen::Matrix<T,2,1>& p,
     out.n.y() = p.y() * inv;
     return out;
 }
-
-// Signed distance function for circle
-template<class T>
-inline T sdfCircle(const Eigen::Matrix<T,2,1>& p,  T radius)
-{
-    return CppAD::sqrt(p.x()*p.x() + p.y()*p.y()) - radius;
-}
-
-// Gradient of the SDF using analytical formula
-template<class T>
-inline Eigen::Matrix<T,2,1> sdfCircle_Grad(const Eigen::Matrix<T,2,1>& p, T radius)
-{
-    /* distance from centre ------------------------------------ */
-    T len = CppAD::sqrt(p.x()*p.x() + p.y()*p.y());
-
-    /* avoid division-by-zero at the centre -------------------- */
-    T inv = CppAD::CondExpGt(len, T(0), T(1)/len, T(0));
-
-    Eigen::Matrix<T,2,1> n;
-    n << p.x()*inv, p.y()*inv;          // p / |p|
-    return -n;
-}
 }}

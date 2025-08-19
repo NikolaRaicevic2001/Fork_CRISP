@@ -40,10 +40,7 @@ ad_function_t pushcircleDynamicConstraints = [](const ad_vector_t& x, ad_vector_
 
         V2ad p_i; p_i << cx_i, cy_i;
         const auto sdg = CRISP::sdf::sdgCircle<ad_scalar_t>(p_i, ad_scalar_t(R));
-        const V2ad        n_i = -sdg.n;
-
-        // auto g_i = CRISP::sdf::sdfCircle(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), ad_scalar_t(R));
-        // auto n_i = CRISP::sdf::sdfCircle_Grad(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), ad_scalar_t(R));
+        const V2ad n_i = -sdg.n;
 
         ad_scalar_t Fx = lam_i * n_i.x();
         ad_scalar_t Fy = lam_i * n_i.y();
@@ -62,7 +59,7 @@ ad_function_t pushcircleDynamicConstraints = [](const ad_vector_t& x, ad_vector_
 ad_function_t pushcircleContactConstraints = [](const ad_vector_t& x, ad_vector_t& y){
     using V2ad = Eigen::Matrix<ad_scalar_t,2,1>;
     y.resize((N-1)*3);
-    
+
     for (size_t i=0; i<N-1; ++i)
     {
         size_t idx = i*(num_state+num_control);
@@ -76,11 +73,9 @@ ad_function_t pushcircleContactConstraints = [](const ad_vector_t& x, ad_vector_
         const auto sdg = CRISP::sdf::sdgCircle<ad_scalar_t>(p_i, ad_scalar_t(R));
         const ad_scalar_t g_i = sdg.d;
 
-        // auto g_i  = CRISP::sdf::sdfCircle(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), ad_scalar_t(R));
-
         y.segment(i*3,3) << lam_i,          // λ ≥ 0  (handled as inequality)
-                           g_i,             // g ≥ 0
-                          -g_i*lam_i;       // -λ·g ≥ 0   ⇒ complementarity
+                            g_i,            // g ≥ 0
+                            -g_i*lam_i;     // -λ·g ≥ 0   ⇒ complementarity
     }
 };
 

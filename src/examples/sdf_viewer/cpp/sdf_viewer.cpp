@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
     //   rounded        hx  hy  r        [0.5  0.3  0.1]
     //   roundedsmooth  hx  hy  r        [0.5  0.3  0.1]
     //   round          hx  hy  r        [0.5  0.3  0.1]
-    //   circle         cx  cy  R        [0.0  0.0  0.3]
+    //   circle         R                [0.3]
     //
     std::string shape = (argc > 1) ? argv[1] : "rounded";
 
@@ -34,9 +34,7 @@ int main(int argc, char** argv) {
     T cx = 0.0, cy = 0.0, R = 0.3;
 
     if (shape == "circle") {
-        if (argc > 2) cx = std::atof(argv[2]);
-        if (argc > 3) cy = std::atof(argv[3]);
-        if (argc > 4) R  = std::atof(argv[4]);
+        if (argc > 2) R  = std::atof(argv[2]);
     } else {
         if (argc > 2) hx = std::atof(argv[2]);
         if (argc > 3) hy = std::atof(argv[3]);
@@ -63,7 +61,7 @@ int main(int argc, char** argv) {
 
     std::string fname;
     if (shape == "circle") {
-        fname = "circle_sdf_cx" + num(cx) + "_cy" + num(cy) + "_R" + num(R) + ".csv";
+        fname = "circle_sdf_R" + num(R) + ".csv";
     } else { // rounded / roundedsmooth / round
         fname = shape + "_sdf_hx" + num(hx) + "_hy" + num(hy) + "_r" + num(r) + ".csv";
     }

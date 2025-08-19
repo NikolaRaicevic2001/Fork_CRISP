@@ -62,7 +62,7 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
 
         V2ad p_i; p_i << cx_i, cy_i;
         const auto sdg = CRISP::sdf::sdfBoxRounded<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
-        const V2ad        n_i = -sdg.n;
+        const V2ad n_i = -sdg.n;
 
         const ad_scalar_t cth = CppAD::cos(th_i);
         const ad_scalar_t sth = CppAD::sin(th_i);
