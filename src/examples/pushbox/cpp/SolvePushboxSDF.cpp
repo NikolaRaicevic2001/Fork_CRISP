@@ -54,21 +54,39 @@ auto printIneq = [](const vector_t& v, const char* tag) {
     }
 };
 
-auto printEq = [](const vector_t& v, const char* tag) {
+auto printEq = [](const vector_t& v, const char* tag, int N) {
     using std::cout; using std::endl;
     cout << tag << " size=" << v.size() << "   ||eq||_inf = " << v.cwiseAbs().maxCoeff() << endl;
 
-    // Layout: [3 initial] + (N-1) blocks of 3 dynamics
-    if (v.size() >= 3) {
+    // Argmax (index of the largest absolute entry)
+    Eigen::Index imax;
+    const double vmax = v.cwiseAbs().maxCoeff(&imax);
+
+    // Decode index -> (block, component)
+    // Layout: [0..2] = init(3), then (N-1) dynamics blocks of size 3
+    static const char* comp_name[3] = {"px","py","theta"};
+    bool is_init = (imax < 3);
+    Eigen::Index blk = -1, comp = (is_init ? imax : (imax - 3) % 3);
+    if (!is_init) blk = (imax - 3) / 3; // blk in [0 .. N-2]
+
+    cout << "  worst entry: idx=" << imax << "  value=" << v(imax) << "  |value|=" << vmax << endl;
+
+    if (is_init) {
+        cout << "  => corresponds to INIT constraint, component " << comp_name[comp] << endl;
         cout << "  init residual:  " << v.segment(0,3).transpose() << endl;
+    } else {
+        cout << "  => corresponds to DYNAMICS constraint at step k=" << blk
+             << ", component " << comp_name[comp] << endl;
+        cout << "  dyn[" << blk << "] residual: " << v.segment(3 + 3*blk, 3).transpose() << endl;
     }
+
+    // Also show first, and last block for context
     if (v.size() >= 6) {
-        cout << "  dyn[0] residual:" << v.segment(3,3).transpose() << endl;
-        cout << "  dyn[last] residual:" << v.tail(3).transpose() << endl;
+        cout << "  dyn[0] residual : " << v.segment(3,3).transpose() << endl;
+        cout << "  dyn[last] resid : " << v.tail(3).transpose() << endl;
     }
 };
 // ---------------------------------------------------------------------------
-
 
 // -------------------------- Dynamics constraints -----------------------------
 ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
@@ -292,8 +310,8 @@ int main() {
     // Check constraints at initial guess
     const vector_t ineq_init = pushboxProblem.evaluateInequalityConstraints(xInitialGuess);
     printIneq(ineq_init, "[INEQ @ init]");
-    const vector_t eq_init   = pushboxProblem.evaluateEqualityConstraints(xInitialGuess);
-    printEq(eq_init, "[EQ   @ init]");
+    const vector_t eq_init = pushboxProblem.evaluateEqualityConstraints(xInitialGuess);
+    printEq(eq_init, "[EQ   @ init]", static_cast<int>(N));
 
     solver.initialize(xInitialGuess);
     solver.solve();
@@ -302,8 +320,8 @@ int main() {
     // Check constraints at solution
     const vector_t ineq_opt = pushboxProblem.evaluateInequalityConstraints(xOptimal);
     printIneq(ineq_opt, "[INEQ @ opt]");
-    const vector_t eq_opt   = pushboxProblem.evaluateEqualityConstraints(xOptimal);
-    printEq(eq_opt, "[EQ   @ opt]");
+    const vector_t eq_opt = pushboxProblem.evaluateEqualityConstraints(xOptimal);
+    printEq(eq_opt, "[EQ   @ opt]", static_cast<int>(N));
 
     std::ofstream log(PROJECT_ROOT / "examples/pushbox/results/results_pushbox_sdf_roundedsmooth.csv");
     for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
