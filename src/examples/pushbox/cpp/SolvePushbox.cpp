@@ -8,8 +8,8 @@
 using namespace CRISP;
 
 // Define model parameters for pushbox
-const scalar_t a = 0.05;
-const scalar_t b = 0.05;
+const scalar_t a = 0.1;
+const scalar_t b = 0.1;
 const scalar_t m = 1;
 const scalar_t mu = 0.5;
 const scalar_t g = 9.8;
@@ -148,10 +148,7 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
 
         if (i < N - 1) {
             ad_vector_t control_error(4);
-            control_error << lambda1_i,
-                            lambda2_i,
-                            lambda3_i,
-                            lambda4_i;
+            control_error << lambda1_i, lambda2_i, lambda3_i, lambda4_i;
             control_cost += control_error.transpose() * R * control_error;
         }
     }
@@ -201,7 +198,7 @@ int main(){
         solver.solve();
         xOptimal = solver.getSolution();
 
-        std::ofstream log(PROJECT_ROOT / "examples/pushbox/results/results_pushbox_AD.csv");
+        std::ofstream log(PROJECT_ROOT / "examples/pushbox/results/results_pushbox_actual.csv");
         for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
         log.close();                              
 

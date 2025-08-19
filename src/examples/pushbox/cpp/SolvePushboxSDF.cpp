@@ -10,25 +10,25 @@
 using namespace CRISP;
 
 // Define model parameters for pushbox
-const scalar_t a = 0.05;
-const scalar_t b = 0.05;
+const scalar_t a = 0.1;
+const scalar_t b = 0.1;
 const scalar_t m = 1;
 const scalar_t mu = 0.5;
 const scalar_t g = 9.8;
 const scalar_t r = std::sqrt(a * a + b * b);    
 const scalar_t c = 0.4;                     
-const scalar_t dt = 0.02;
+const scalar_t dt = 0.1;
 const size_t N = 100;                               // number of time steps
 const size_t num_state = 3;                         // STATE  (3) : [px, py, θ]
 const size_t num_control = 3;                       // CONTROL (3) : [cx, cy, λ ]
 
-const size_t num_segments = 12;
+const size_t num_segments = 18;
 const scalar_t theta = 12 * 2 * M_PI / num_segments;
 
 // SDF rounding radius (meters)
 constexpr scalar_t ROUND_R = 0.01;
-constexpr scalar_t EPS_COMP = 1e-6;
-constexpr scalar_t W_PENETRATION = 1e0;
+constexpr scalar_t EPS_COMP = 1e-9;
+constexpr scalar_t W_PENETRATION = 1e-3;
 
 // Global variables for the problem
 static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();
@@ -61,7 +61,7 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t theta_next  = x[idx + (num_state + num_control) + 2];
 
         V2ad p_i; p_i << cx_i, cy_i;
-        const auto sdg = CRISP::sdf::sdfBoxRounded<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
+        const auto sdg = CRISP::sdf::sdfBoxRoundedSmooth<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
         const V2ad n_i = -sdg.n;
 
         const ad_scalar_t cth = CppAD::cos(th_i);
@@ -101,7 +101,7 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t lam_i = x[idx + 5];
 
         V2ad p_i; p_i << cx_i, cy_i;
-        const auto sdg = CRISP::sdf::sdfBoxRounded<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
+        const auto sdg = CRISP::sdf::sdfBoxRoundedSmooth<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
         const ad_scalar_t g_i = sdg.d;
 
         y.segment(i*3,3) << lam_i,                              // λ ≥ 0
@@ -138,7 +138,7 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
         Q.setZero(); Q(0,0)=100; Q(1,1)=100; Q(2,2)=100;
 
         V2ad p_i; p_i << cx_i, cy_i;
-        auto sdf = CRISP::sdf::sdfBoxRounded<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
+        auto sdf = CRISP::sdf::sdfBoxRoundedSmooth<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
         ad_scalar_t g_i = sdf.d;
         ad_scalar_t pen = pospart(-g_i);
         tracking_cost += ad_scalar_t(W_PENETRATION) * pen * pen;
@@ -204,7 +204,7 @@ int main() {
         Eigen::SparseMatrix<double> Js = contact->getGradient(xInitialGuess);
 
         // Prepare output
-        const auto out = PROJECT_ROOT / "examples/pushbox/results/results_pushbox_sdf_rounded_gradcheck.csv";
+        const auto out = PROJECT_ROOT / "examples/pushbox/results/results_pushbox_sdf_roundedsmooth_gradcheck.csv";
         std::ofstream os(out);
         os << std::setprecision(17);
         os << "i,cx,cy,jac_nx_raw,jac_ny_raw,jac_nx,jac_ny,sdf_nx,sdf_ny,dot,angle_deg\n";
@@ -231,7 +231,7 @@ int main() {
             const double cx = static_cast<double>(xInitialGuess[i*vars_per_knot + 3]);
             const double cy = static_cast<double>(xInitialGuess[i*vars_per_knot + 4]);
             const V2d p(cx, cy);
-            const auto sdg = CRISP::sdf::sdfBoxRounded<double>(p, half_d, double(ROUND_R));
+            const auto sdg = CRISP::sdf::sdfBoxRoundedSmooth<double>(p, half_d, double(ROUND_R));
             const double snx = sdg.n.x(), sny = sdg.n.y();
 
             // Direction agreement
@@ -249,8 +249,8 @@ int main() {
 
     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
     solver.setHyperParameters("muMax", vector_t::Constant(1, 1e12));
-    // solver.setHyperParameters("trailTol",       vector_t::Constant(1, 1e-3));
-    // solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-3));
+    solver.setHyperParameters("trailTol",       vector_t::Constant(1, 1e-5));
+    solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
     // solver.setHyperParameters("WeightedMode",   vector_t::Constant(1, 1));
 
     // choose a final target on a circle
@@ -262,10 +262,9 @@ int main() {
     xOptimal = solver.getSolution();
 
     auto ineq0 = pushboxProblem.evaluateInequalityConstraints(xInitialGuess);
-    std::cout << "ineq[0..5]^T = " << ineq0.head(6).transpose() << std::endl;
-    // Should be ≤ 0; typically [-λ0, -g0, λ0*g0-ε, -λ1, -g1, λ1*g1-ε, ...]
+    std::cout << "ineq[0..5]^T = " << ineq0.head(6).transpose() << std::endl; // Should be 0 ≤ ; typically [-λ0, -g0, λ0*g0-ε, -λ1, -g1, λ1*g1-ε, ...]
 
-    std::ofstream log(PROJECT_ROOT / "examples/pushbox/results/results_pushbox_sdf_rounded.csv");
+    std::ofstream log(PROJECT_ROOT / "examples/pushbox/results/results_pushbox_sdf_roundedsmooth.csv");
     for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
     log.close();
 }

@@ -7,19 +7,19 @@ from matplotlib.animation import FuncAnimation
 
 # ---------------- PARAMETERS ----------------
 # Define model parameters for pushbox
-a = 0.05                        # half width of the box
-b = 0.05                        # half height of the box
-dt = 0.02                       # time step (20 ms) 
-N  = 100                        # number of time steps
-num_state   = 3                 # STATE  (3) : [px, py, θ]
+a = 0.1                        # half width of the box
+b = 0.1                        # half height of the box
+dt = 0.1                       # time step (100 ms)
+N  = 100                       # number of time steps
+num_state   = 3                # STATE  (3) : [px, py, θ]
 example_name = "pushbox_sdf"    
 
 if example_name == "pushbox":
-    method = "AD"
+    method = "actual"
     num_control = 6             # CONTROL (6) : [cx, cy, λ1-λ4]  (cx, cy plotted)
     csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}_{method}.csv" 
 elif example_name == "pushbox_sdf":
-    method = "rounded"
+    method = "roundedsmooth"
     num_control = 3             # CONTROL (3) : [cx, cy, λ]  (cx, cy plotted)
     csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}_{method}.csv" 
 
