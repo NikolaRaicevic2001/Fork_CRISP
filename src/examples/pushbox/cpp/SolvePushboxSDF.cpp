@@ -27,7 +27,7 @@ const scalar_t theta = 12 * 2 * M_PI / num_segments;
 
 // SDF rounding radius (meters)
 constexpr scalar_t ROUND_R = 0.01;
-constexpr scalar_t EPS_COMP = 1e-4;
+constexpr scalar_t EPS_COMP = 1e-6;
 constexpr scalar_t W_PENETRATION = 1e0;
 
 // Global variables for the problem
