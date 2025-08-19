@@ -38,6 +38,38 @@ static inline ad_scalar_t pospart(const ad_scalar_t& z) {
     return CppAD::CondExpGt(z, ad_scalar_t(0), z, ad_scalar_t(0));
 }
 
+auto printIneq = [](const vector_t& v, const char* tag) {
+    using std::cout; using std::endl;
+    cout << tag << " size=" << v.size() << "   max(v) = " << v.array().maxCoeff() << "   min(v) = " << v.array().minCoeff() << "   (-v).maxCoeff = " << (-v).array().maxCoeff() << endl;
+
+    // Show first few 3-tuples [λ_i, g_i, ε - λ_i*g_i]
+    const Eigen::Index blocks = v.size() / 3;
+    const Eigen::Index show   = std::min<Eigen::Index>(3, blocks);
+    for (Eigen::Index i = 0; i < show; ++i) {
+        cout << "  ineq[" << i << "] = " << v.segment<3>(3*i).transpose() << endl;
+    }
+    if (blocks > 0) {
+        const Eigen::Index last = blocks - 1;
+        cout << "  ineq[last] = " << v.segment<3>(3*last).transpose() << endl;
+    }
+};
+
+auto printEq = [](const vector_t& v, const char* tag) {
+    using std::cout; using std::endl;
+    cout << tag << " size=" << v.size() << "   ||eq||_inf = " << v.cwiseAbs().maxCoeff() << endl;
+
+    // Layout: [3 initial] + (N-1) blocks of 3 dynamics
+    if (v.size() >= 3) {
+        cout << "  init residual:  " << v.segment(0,3).transpose() << endl;
+    }
+    if (v.size() >= 6) {
+        cout << "  dyn[0] residual:" << v.segment(3,3).transpose() << endl;
+        cout << "  dyn[last] residual:" << v.tail(3).transpose() << endl;
+    }
+};
+// ---------------------------------------------------------------------------
+
+
 // -------------------------- Dynamics constraints -----------------------------
 ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
     using V2ad = Eigen::Matrix<ad_scalar_t,2,1>;
@@ -257,12 +289,21 @@ int main() {
     xFinalStates << 2*std::cos(theta), 2*std::sin(theta), theta;
     solver.setProblemParameters("pushboxObjective", xFinalStates);
 
+    // Check constraints at initial guess
+    const vector_t ineq_init = pushboxProblem.evaluateInequalityConstraints(xInitialGuess);
+    printIneq(ineq_init, "[INEQ @ init]");
+    const vector_t eq_init   = pushboxProblem.evaluateEqualityConstraints(xInitialGuess);
+    printEq(eq_init, "[EQ   @ init]");
+
     solver.initialize(xInitialGuess);
     solver.solve();
     xOptimal = solver.getSolution();
 
-    auto ineq0 = pushboxProblem.evaluateInequalityConstraints(xInitialGuess);
-    std::cout << "ineq[0..5]^T = " << ineq0.head(6).transpose() << std::endl; // Should be 0 ≤ ; typically [-λ0, -g0, λ0*g0-ε, -λ1, -g1, λ1*g1-ε, ...]
+    // Check constraints at solution
+    const vector_t ineq_opt = pushboxProblem.evaluateInequalityConstraints(xOptimal);
+    printIneq(ineq_opt, "[INEQ @ opt]");
+    const vector_t eq_opt   = pushboxProblem.evaluateEqualityConstraints(xOptimal);
+    printEq(eq_opt, "[EQ   @ opt]");
 
     std::ofstream log(PROJECT_ROOT / "examples/pushbox/results/results_pushbox_sdf_roundedsmooth.csv");
     for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
