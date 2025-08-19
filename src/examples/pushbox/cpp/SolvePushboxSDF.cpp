@@ -1,11 +1,11 @@
 #include "solver_core/SolverInterface.h"
 #include "sdf/RoundBox.h"
 
-#include <cmath>              // use <cmath>, not <math.h>
-#include <chrono>
-#include <iomanip>
-#include <filesystem>
-#include <cppad/cppad.hpp>    // for CppAD::cos/sin with AD
+#include <cmath>                // use <cmath>, not <math.h>
+#include <chrono>               // use <chrono> for timing
+#include <iomanip>              // use <iomanip> for formatting
+#include <filesystem>           // use <filesystem> for path manipulation
+#include <cppad/cppad.hpp>      // for CppAD::cos/sin with AD
 
 using namespace CRISP;
 
@@ -22,7 +22,7 @@ const size_t N = 100;                               // number of time steps
 const size_t num_state = 3;                         // STATE  (3) : [px, py, θ]
 const size_t num_control = 3;                       // CONTROL (3) : [cx, cy, λ ]
 
-const size_t num_segments = 18;
+const size_t num_segments = 12;
 const scalar_t theta = 12 * 2 * M_PI / num_segments;
 
 // SDF rounding radius (meters)
@@ -197,53 +197,49 @@ int main() {
         xInitialGuess[idx + 5] = 0;                             // λ
     }
 
-    /* 1) Save full contact Jacobian as a dense CSV (rows x cols) */
-    {
-        // J is likely Eigen::SparseMatrix<double>
-        auto J = contact->getGradient(xInitialGuess);
-
-        // Densify for easy CSV writing
-        Eigen::MatrixXd JD = Eigen::MatrixXd(J);
-
-        const std::filesystem::path out = PROJECT_ROOT / "examples/pushbox/results/results_pushbox_sdf_rounded_contact_gradients.csv";
-        std::ofstream os(out);
-        os << std::setprecision(17);
-
-        // optional header with sizes
-        os << "# rows=" << JD.rows() << ", cols=" << JD.cols() << "\n";
-
-        for (Eigen::Index r = 0; r < JD.rows(); ++r) {
-            for (Eigen::Index c = 0; c < JD.cols(); ++c) {
-                os << JD(r,c);
-                if (c + 1 < JD.cols()) os << ',';
-            }
-            os << '\n';
-        }
-        os.close();
-    }
-
-    /* 2) Save SDF gradients (unit outward normals) for each knot's (cx,cy) */
     {
         using V2d = Eigen::Matrix<double,2,1>;
         const V2d half_d(a, b);
 
-        const std::filesystem::path out = PROJECT_ROOT / "examples/pushbox/results/results_pushbox_sdf_rounded_sdf_gradients.csv";
+        Eigen::SparseMatrix<double> Js = contact->getGradient(xInitialGuess);
+
+        // Prepare output
+        const auto out = PROJECT_ROOT / "examples/pushbox/results/results_pushbox__sdf_rounded_gradcheck.csv";
         std::ofstream os(out);
         os << std::setprecision(17);
-        os << "i,cx,cy,nx,ny\n";
+        os << "i,cx,cy,jac_nx_raw,jac_ny_raw,jac_nx,jac_ny,sdf_nx,sdf_ny,dot,angle_deg\n";
 
-        for (size_t i = 0; i < N; ++i) {
-            const size_t idx = i * (num_state + num_control);
-            const double cx  = static_cast<double>(xInitialGuess[idx + 3]);
-            const double cy  = static_cast<double>(xInitialGuess[idx + 4]);
+        const size_t vars_per_knot = num_state + num_control; // 6
+        const size_t Ncols = Js.cols();                       // N*6
+        const size_t N     = Ncols / vars_per_knot;
 
+        for (size_t i = 0; i < N - 1; ++i) {
+            const size_t row_g = 3*i + 1;                 // g_i row
+            const size_t col_cx = i*vars_per_knot + 3;    // cx_i column
+            const size_t col_cy = i*vars_per_knot + 4;    // cy_i column
+
+            // Extract raw partials (gap wrt cx, cy)
+            const double jx_raw = Js.coeff(row_g, col_cx);
+            const double jy_raw = Js.coeff(row_g, col_cy);
+
+            // Normalize Jacobian gradient
+            const double nrm = std::sqrt(jx_raw*jx_raw + jy_raw*jy_raw) + 1e-12;
+            const double jnx = jx_raw / nrm;
+            const double jny = jy_raw / nrm;
+
+            // Evaluate SDF normal at (cx,cy) using the SAME SDF variant as the constraint
+            const double cx = static_cast<double>(xInitialGuess[i*vars_per_knot + 3]);
+            const double cy = static_cast<double>(xInitialGuess[i*vars_per_knot + 4]);
             const V2d p(cx, cy);
-
-            // Choose the same SDF you use in the constraints for a fair comparison:
-            // const auto sdg = CRISP::sdf::sdfBoxRound<double>(p, half_d, double(ROUND_R));
             const auto sdg = CRISP::sdf::sdfBoxRoundedSmooth<double>(p, half_d, double(ROUND_R));
+            const double snx = sdg.n.x(), sny = sdg.n.y();
 
-            os << i << ',' << cx << ',' << cy << ',' << sdg.n.x() << ',' << sdg.n.y() << '\n';
+            // Direction agreement
+            double dot = jnx*snx + jny*sny;
+            dot = std::max(-1.0, std::min(1.0, dot));
+            const double angle_deg = std::acos(dot) * 180.0 / M_PI;
+
+            os << i << ',' << cx << ',' << cy << ',' << jx_raw << ',' << jy_raw << ',' << jnx << ',' << jny << ',' << snx << ',' << sny << ',' << dot << ',' << angle_deg << '\n';
         }
         os.close();
     }
