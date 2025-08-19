@@ -42,7 +42,6 @@ auto printIneq = [](const vector_t& v, const char* tag) {
     using std::cout; using std::endl;
     cout << tag << " size=" << v.size() << "   max(v) = " << v.array().maxCoeff() << "   min(v) = " << v.array().minCoeff() << "   (-v).maxCoeff = " << (-v).array().maxCoeff() << endl;
 
-    // Show first few 3-tuples [λ_i, g_i, ε - λ_i*g_i]
     const Eigen::Index blocks = v.size() / 3;
     const Eigen::Index show   = std::min<Eigen::Index>(3, blocks);
     for (Eigen::Index i = 0; i < show; ++i) {
@@ -54,36 +53,76 @@ auto printIneq = [](const vector_t& v, const char* tag) {
     }
 };
 
-auto printEq = [](const vector_t& v, const char* tag, int N) {
+auto printEq = [](const vector_t& v, const char* tag, int Nsteps, const vector_t& x_state) {
     using std::cout; using std::endl;
+    static const char* comp_name[3] = {"px","py","theta"};
+
     cout << tag << " size=" << v.size() << "   ||eq||_inf = " << v.cwiseAbs().maxCoeff() << endl;
 
-    // Argmax (index of the largest absolute entry)
-    Eigen::Index imax;
-    const double vmax = v.cwiseAbs().maxCoeff(&imax);
+    Eigen::Index imax; const double vmax = v.cwiseAbs().maxCoeff(&imax);
+    const Eigen::Index dyn_len = 3 * (Nsteps - 1);   // dynamics entries
+    const bool in_dyn = (imax < dyn_len);
 
-    // Decode index -> (block, component)
-    // Layout: [0..2] = init(3), then (N-1) dynamics blocks of size 3
-    static const char* comp_name[3] = {"px","py","theta"};
-    bool is_init = (imax < 3);
-    Eigen::Index blk = -1, comp = (is_init ? imax : (imax - 3) % 3);
-    if (!is_init) blk = (imax - 3) / 3; // blk in [0 .. N-2]
+    if (in_dyn) {
+        const Eigen::Index k    = imax / 3;          // 0..N-2
+        const int          comp = int(imax % 3);     // 0:px, 1:py, 2:theta
+        cout << "  worst entry: idx=" << imax << "  value=" << v(imax) << "  |value|=" << vmax << endl;
+        cout << "  => DYNAMICS at k=" << k << ", component " << comp_name[comp] << endl;
+        cout << "  dyn[" << k << "] residual: " << v.segment<3>(3*k).transpose() << endl;
 
-    cout << "  worst entry: idx=" << imax << "  value=" << v(imax) << "  |value|=" << vmax << endl;
+        // Also show first/last dynamics blocks and init block
+        if (dyn_len >= 3) {
+            cout << "  dyn[0] residual : " << v.segment<3>(0).transpose() << endl;
+            cout << "  dyn[last] resid : " << v.segment<3>(dyn_len - 3).transpose() << endl;
+        }
+        if (v.size() >= dyn_len + 3) {
+            cout << "  init residual   : " << v.segment<3>(dyn_len).transpose() << endl;
+        }
 
-    if (is_init) {
-        cout << "  => corresponds to INIT constraint, component " << comp_name[comp] << endl;
-        cout << "  init residual:  " << v.segment(0,3).transpose() << endl;
+        // Optional: dump theta-dynamics ingredients exactly for this k
+        if (comp == 2) {
+            using V2 = Eigen::Matrix<double,2,1>;
+            const size_t vars = num_state + num_control; // 6
+            const size_t idx  = size_t(k) * vars;
+
+            const double th      = x_state[idx + 2];
+            const double th_next = x_state[idx + vars + 2];
+            const double cx      = x_state[idx + 3];
+            const double cy      = x_state[idx + 4];
+            const double lam     = x_state[idx + 5];
+
+            const V2 half_d(a, b);
+            const V2 p(cx, cy);
+            const auto sdg  = CRISP::sdf::sdfBoxRoundedSmooth<double>(p, half_d, double(ROUND_R));
+            const V2 n_body = -sdg.n;
+
+            const double torque_z = lam * (cx * n_body.y() - cy * n_body.x());
+            // const double denom_ang = double(mu * m * g * c * r);  // same as model
+            const double denom_ang = double(0.10);  // same as model
+            const double th_dot = torque_z / denom_ang;
+            const double res    = th_next - th - th_dot * double(dt);
+
+            cout << std::setprecision(9)
+                 << "[theta dyn @ k=" << k << "] "
+                 << "th=" << th << " th_next=" << th_next
+                 << " lam=" << lam
+                 << " cx=" << cx << " cy=" << cy
+                 << " n_body=[" << n_body.x() << "," << n_body.y() << "] "
+                 << " torque=" << torque_z
+                 << " th_dot=" << th_dot
+                 << " dt*th_dot=" << th_dot * double(dt)
+                 << " residual=" << res << "\n";
+        }
     } else {
-        cout << "  => corresponds to DYNAMICS constraint at step k=" << blk
-             << ", component " << comp_name[comp] << endl;
-        cout << "  dyn[" << blk << "] residual: " << v.segment(3 + 3*blk, 3).transpose() << endl;
-    }
+        const int comp = int((imax - dyn_len) % 3);
+        cout << "  worst entry: idx=" << imax << "  value=" << v(imax) << "  |value|=" << vmax << endl;
+        cout << "  => INIT constraint, component " << comp_name[comp] << endl;
+        cout << "  init residual   : " << v.segment<3>(dyn_len).transpose() << endl;
 
-    // Also show first, and last block for context
-    if (v.size() >= 6) {
-        cout << "  dyn[0] residual : " << v.segment(3,3).transpose() << endl;
-        cout << "  dyn[last] resid : " << v.tail(3).transpose() << endl;
+        if (dyn_len >= 3) {
+            cout << "  dyn[0] residual : " << v.segment<3>(0).transpose() << endl;
+            cout << "  dyn[last] resid : " << v.segment<3>(dyn_len - 3).transpose() << endl;
+        }
     }
 };
 // ---------------------------------------------------------------------------
@@ -122,7 +161,8 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
         const ad_scalar_t torque_z = lam_i * (cx_i*n_i.y() - cy_i*n_i.x());
 
         const ad_scalar_t denom_lin = ad_scalar_t(mu * m * g);
-        const ad_scalar_t denom_ang = ad_scalar_t(mu * m * g * c * r);
+        // const ad_scalar_t denom_ang = ad_scalar_t(mu * m * g * c * r);
+        const ad_scalar_t denom_ang = ad_scalar_t(0.10);
 
         const ad_scalar_t px_dot  = Fx / denom_lin;
         const ad_scalar_t py_dot  = Fy / denom_lin;
@@ -156,7 +196,7 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
 
         y.segment(i*3,3) << lam_i,                              // λ ≥ 0
                             g_i,                                // g ≥ 0
-                            ad_scalar_t(EPS_COMP) - g_i*lam_i;  // λ g ≤ ε
+                            ad_scalar_t(EPS_COMP) - g_i*lam_i;  // ε - λ * g ≥ 0
     }
 };
 
@@ -311,7 +351,7 @@ int main() {
     const vector_t ineq_init = pushboxProblem.evaluateInequalityConstraints(xInitialGuess);
     printIneq(ineq_init, "[INEQ @ init]");
     const vector_t eq_init = pushboxProblem.evaluateEqualityConstraints(xInitialGuess);
-    printEq(eq_init, "[EQ   @ init]", static_cast<int>(N));
+    printEq(eq_init, "[EQ   @ init]", static_cast<int>(N), xInitialGuess);
 
     solver.initialize(xInitialGuess);
     solver.solve();
@@ -321,7 +361,7 @@ int main() {
     const vector_t ineq_opt = pushboxProblem.evaluateInequalityConstraints(xOptimal);
     printIneq(ineq_opt, "[INEQ @ opt]");
     const vector_t eq_opt = pushboxProblem.evaluateEqualityConstraints(xOptimal);
-    printEq(eq_opt, "[EQ   @ opt]", static_cast<int>(N));
+    printEq(eq_opt, "[EQ   @ opt]", static_cast<int>(N), xOptimal);
 
     std::ofstream log(PROJECT_ROOT / "examples/pushbox/results/results_pushbox_sdf_roundedsmooth.csv");
     for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
