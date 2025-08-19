@@ -5,6 +5,8 @@
 #include <chrono>
 #include "math.h"
 
+#include "sdf/Circle.h"
+
 using namespace CRISP;
 
 // Define model parameters for circle
@@ -20,47 +22,9 @@ const size_t num_control = 3;           // CONTROL (3) : [cx, cy, λ ]
 // Global variables for the problem
 static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();    
 
-// Signed distance function for circle
-template<class T>
-inline T sdfCircle(const Eigen::Matrix<T,2,1>& p,  T radius)
-{
-    return CppAD::sqrt(p.x()*p.x() + p.y()*p.y()) - radius;
-}
-
-// Gradient of the SDF using analytical formula
-template<class T>
-inline Eigen::Matrix<T,2,1> sdfCircle_Grad(const Eigen::Matrix<T,2,1>& p, T radius)
-{
-    /* distance from centre ------------------------------------ */
-    T len = CppAD::sqrt(p.x()*p.x() + p.y()*p.y());
-
-    /* avoid division-by-zero at the centre -------------------- */
-    T inv = CppAD::CondExpGt(len, T(0), T(1)/len, T(0));
-
-    Eigen::Matrix<T,2,1> n;
-    n << p.x()*inv, p.y()*inv;          // p / |p|
-    return -n;
-}
-
-// Numerical gradient of the SDF using finite differences
-template<class T>
-Eigen::Matrix<T,2,1> sdfCircle_FDGrad(const Eigen::Matrix<T,2,1>& p, T radius, double eps = 1e-6)
-{
-    Eigen::Matrix<T,2,1> g;
-    T f0 = sdfCircle(p, radius);
-
-    for (int k = 0; k < 2; ++k) {
-        Eigen::Matrix<T,2,1> ph = p;
-        ph(k) += eps;
-        g(k)   = (sdfCircle(ph, radius) - f0) / eps;
-    }
-
-    // Normalize the gradient
-    return g / CppAD::sqrt(g.squaredNorm()); 
-}
-
 // define the dynamics constraints
 ad_function_t pushcircleDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
+    using V2ad = Eigen::Matrix<ad_scalar_t,2,1>;
     y.resize((N - 1) * num_state);
     for (size_t i = 0; i < N - 1; ++i) {
         size_t idx = i * (num_state + num_control);
@@ -74,8 +38,12 @@ ad_function_t pushcircleDynamicConstraints = [](const ad_vector_t& x, ad_vector_
         ad_scalar_t px_next = x[idx + (num_state + num_control) + 0];
         ad_scalar_t py_next = x[idx + (num_state + num_control) + 1];
 
-        auto g_i = sdfCircle(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), ad_scalar_t(R));
-        auto n_i = sdfCircle_Grad(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), ad_scalar_t(R));
+        V2ad p_i; p_i << cx_i, cy_i;
+        const auto sdg = CRISP::sdf::sdgCircle<ad_scalar_t>(p_i, ad_scalar_t(R));
+        const V2ad        n_i = -sdg.n;
+
+        // auto g_i = CRISP::sdf::sdfCircle(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), ad_scalar_t(R));
+        // auto n_i = CRISP::sdf::sdfCircle_Grad(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), ad_scalar_t(R));
 
         ad_scalar_t Fx = lam_i * n_i.x();
         ad_scalar_t Fy = lam_i * n_i.y();
@@ -91,9 +59,10 @@ ad_function_t pushcircleDynamicConstraints = [](const ad_vector_t& x, ad_vector_
 };
 
 // contact implicit constraints for pushcircle
-ad_function_t pushcircleContactConstraints = [](const ad_vector_t& x, ad_vector_t& y)
-{
+ad_function_t pushcircleContactConstraints = [](const ad_vector_t& x, ad_vector_t& y){
+    using V2ad = Eigen::Matrix<ad_scalar_t,2,1>;
     y.resize((N-1)*3);
+    
     for (size_t i=0; i<N-1; ++i)
     {
         size_t idx = i*(num_state+num_control);
@@ -103,7 +72,11 @@ ad_function_t pushcircleContactConstraints = [](const ad_vector_t& x, ad_vector_
         ad_scalar_t cy_i    = x[idx + 3];
         ad_scalar_t lam_i   = x[idx + 4];
 
-        auto g_i  = sdfCircle(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), ad_scalar_t(R));
+        V2ad p_i; p_i << cx_i, cy_i;
+        const auto sdg = CRISP::sdf::sdgCircle<ad_scalar_t>(p_i, ad_scalar_t(R));
+        const ad_scalar_t g_i = sdg.d;
+
+        // auto g_i  = CRISP::sdf::sdfCircle(Eigen::Matrix<ad_scalar_t,2,1>(cx_i,cy_i), ad_scalar_t(R));
 
         y.segment(i*3,3) << lam_i,          // λ ≥ 0  (handled as inequality)
                            g_i,             // g ≥ 0
@@ -201,7 +174,7 @@ int main(){
         solver.solve();
         xOptimal = solver.getSolution();
 
-        std::ofstream log(PROJECT_ROOT / "examples/pushcircle/results/results_pushcircle_sdf_AD.csv");
+        std::ofstream log(PROJECT_ROOT / "examples/pushcircle/results/results_pushcircle_sdf.csv");
         for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
         log.close();                              
 

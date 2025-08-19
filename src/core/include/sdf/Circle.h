@@ -3,27 +3,42 @@
 #include "sdf/utils.h"
 
 namespace CRISP { namespace sdf {
-
-template<class T> inline Sdf2D<T> sdfCircle(const Eigen::Matrix<T,2,1>& p,
-                                            const Eigen::Matrix<T,2,1>& c,
-                                            const T& r_in,
-                                            const T eps = T(1e-12)){
-    const T zero = T(0);
-
-    // clamp radius to be nonnegative (safe for optimization / AD)
-    const T r = cexp_lt(r_in, zero, zero, r_in);
-
-    // shift to circle-centered coordinates
-    const T qx = p.x() - c.x();
-    const T qy = p.y() - c.y();
-
+template<class T> inline Sdf2D<T> sdgCircle(const Eigen::Matrix<T,2,1>& p,
+                                            const T& r,
+                                            const T eps = T(1e-12))
+{
     // robust length so the normal is defined even at the center
-    const T len = safe_norm2(qx, qy, eps);
+    const T len = safe_norm2(p.x(), p.y(), eps);
+
+    // avoid division-by-zero at the centre
+    T inv = CppAD::CondExpGt(len, T(0), T(1)/len, T(0));
 
     Sdf2D<T> out;
     out.d    = len - r;            // signed distance
-    out.n.x() = qx / len;          // unit outward normal
-    out.n.y() = qy / len;
+    out.n.x() = p.x() * inv;      // unit outward normal
+    out.n.y() = p.y() * inv;
     return out;
+}
+
+// Signed distance function for circle
+template<class T>
+inline T sdfCircle(const Eigen::Matrix<T,2,1>& p,  T radius)
+{
+    return CppAD::sqrt(p.x()*p.x() + p.y()*p.y()) - radius;
+}
+
+// Gradient of the SDF using analytical formula
+template<class T>
+inline Eigen::Matrix<T,2,1> sdfCircle_Grad(const Eigen::Matrix<T,2,1>& p, T radius)
+{
+    /* distance from centre ------------------------------------ */
+    T len = CppAD::sqrt(p.x()*p.x() + p.y()*p.y());
+
+    /* avoid division-by-zero at the centre -------------------- */
+    T inv = CppAD::CondExpGt(len, T(0), T(1)/len, T(0));
+
+    Eigen::Matrix<T,2,1> n;
+    n << p.x()*inv, p.y()*inv;          // p / |p|
+    return -n;
 }
 }}

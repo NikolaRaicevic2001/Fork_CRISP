@@ -79,7 +79,6 @@ int main(int argc, char** argv) {
 
     // ----------------- Precompute params --------------
     const V2 half(hx, hy);
-    const V2 center(cx, cy);
 
     // ----------------- Sample SDF ---------------------
     Sdf2D<T> sdg; // reuse this each loop
@@ -97,7 +96,7 @@ int main(int argc, char** argv) {
             } else if (shape == "round") {
                 sdg = CRISP::sdf::sdfBoxRound<T>(p, half, r);
             } else if (shape == "circle") {
-                sdg = CRISP::sdf::sdfCircle<T>(p, center, R);
+                sdg = CRISP::sdf::sdgCircle<T>(p, R);
             } else {
                 std::cerr << "ERROR: unknown shape '" << shape << "'\n";
                 return 1;

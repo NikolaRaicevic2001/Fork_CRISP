@@ -61,8 +61,8 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t theta_next  = x[idx + (num_state + num_control) + 2];
 
         V2ad p_i; p_i << cx_i, cy_i;
-        const auto sdf = CRISP::sdf::sdfBoxRounded<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
-        const V2ad        n_i = -sdf.n;
+        const auto sdg = CRISP::sdf::sdfBoxRounded<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
+        const V2ad        n_i = -sdg.n;
 
         const ad_scalar_t cth = CppAD::cos(th_i);
         const ad_scalar_t sth = CppAD::sin(th_i);
@@ -101,8 +101,8 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t lam_i = x[idx + 5];
 
         V2ad p_i; p_i << cx_i, cy_i;
-        const auto sdf = CRISP::sdf::sdfBoxRounded<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
-        const ad_scalar_t g_i = sdf.d;
+        const auto sdg = CRISP::sdf::sdfBoxRounded<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
+        const ad_scalar_t g_i = sdg.d;
 
         y.segment(i*3,3) << lam_i,                              // λ ≥ 0
                             g_i,                                // g ≥ 0

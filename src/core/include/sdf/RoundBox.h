@@ -12,7 +12,6 @@
 #include "sdf/utils.h"
 
 namespace CRISP { namespace sdf {
-    
 // ------------------------ Rounded Box SDF + normal ----------------------------
 // p    : query point (x,y)
 // half : box half-sizes (hx,hy)

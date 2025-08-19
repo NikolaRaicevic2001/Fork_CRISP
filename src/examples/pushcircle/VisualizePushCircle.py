@@ -12,8 +12,7 @@ dt             = 0.02           # time-step
 N              = 100            # number of time-steps
 num_state      = 2              # [px, py]
 num_control    = 3              # [cx, cy, λ]  -> we plot cx, cy
-gradient_method  = "AD"         # "AD" or "FD" – only used in file-name
-csv_file = ( Path(__file__).resolve().parent / "results" / f"results_pushcircle_sdf_{gradient_method}.csv" )
+csv_file = ( Path(__file__).resolve().parent / "results" / f"results_pushcircle_sdf.csv" )
 
 # goal configuration (in world frame)
 goal_state   = np.array([1.0, 1.0])  
@@ -40,7 +39,7 @@ ax[1].set_ylabel("contact point")
 ax[1].legend()
 
 fig.tight_layout()
-fig.savefig(f"results/figures_pushcircle_{gradient_method}.png", dpi=120, bbox_inches='tight')
+fig.savefig(f"results/figures_pushcircle.png", dpi=120, bbox_inches='tight')
 
 # ──────── CARTOON ANIMATION ───────────────────────────────────────────────
 fig2, ax2 = plt.subplots(figsize=(7, 5))
@@ -65,7 +64,7 @@ def update(k):
 
 
 ani = FuncAnimation(fig2, update, frames=N, interval=dt*1000, blit=True)
-gif_name = f"results/animation_pushcircle_{gradient_method}.gif"
+gif_name = f"results/animation_pushcircle.gif"
 ani.save(gif_name, writer='pillow', fps=int(1/dt), dpi=120)
 
 plt.show()
