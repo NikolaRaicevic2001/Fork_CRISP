@@ -123,8 +123,8 @@ try:
         plan = crisp_shared.reshape((N, num_state + num_control))
         px = plan[:, 0]
         py = plan[:, 1]
-        cx = plan[:, 2]
-        cy = plan[:, 3]
+        world_cx = px + plan[:, 2]
+        world_cy = py + plan[:, 3]
         # lam = plan[:, 4]  # available if needed
 
         # Check if someone updated the initial pose; move the initial circle if so
@@ -133,18 +133,18 @@ try:
         # Update time-series
         ax_px.set_ydata(px)
         ax_py.set_ydata(py)
-        ax_cx.set_ydata(cx)
-        ax_cy.set_ydata(cy)
+        ax_cx.set_ydata(world_cx)
+        ax_cy.set_ydata(world_cy)
         ax_ts.relim()
         ax_ts.autoscale_view()
 
         # Update workspace
-        update_xy(px, py, cx, cy)
+        update_xy(px, py, world_cx, world_cy)
 
         # Draw (non-blocking)
         fig.canvas.draw_idle()
         fig.canvas.flush_events()
-        time.sleep(0.05)  # ~20 Hz
+        time.sleep(0.05)  # ~20 Hz 
 
         # Example test write at every 100th step
         if steps % 100 == 0:
