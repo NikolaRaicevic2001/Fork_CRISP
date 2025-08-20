@@ -15,7 +15,7 @@ const scalar_t m = 1;                   // mass of the circle
 const scalar_t mu = 0.5;                // friction coefficient
 const scalar_t g = 9.8;                 // gravitational acceleration  
 const scalar_t dt = 0.02;               // time step size
-const size_t N = 100;                   // number of time steps
+const size_t N = 200;                   // number of time steps
 const size_t num_state = 2;             // STATE  (2) : [px, py]
 const size_t num_control = 3;           // CONTROL (3) : [cx, cy, λ ]
 
@@ -158,9 +158,10 @@ int main(){
     SolverParameters params;
     SolverInterface solver(pushcircleProblem, params);
     solver.setProblemParameters("pushcircleInitialConstraints", xInitialStates);
-    solver.setHyperParameters("maxIterations", vector_t::Constant(1, 1000));
-    solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-3));
-    solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-3));
+    solver.setHyperParameters("maxIterations", vector_t::Constant(1, 5000));
+    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e12));
+    solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-5));
+    solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
     // solver.setHyperParameters("verbose", vector_t::Constant(1, 1));  
         xFinalStates << 1.0, 1.0;

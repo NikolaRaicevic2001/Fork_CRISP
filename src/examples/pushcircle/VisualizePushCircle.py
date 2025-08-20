@@ -9,7 +9,7 @@ from matplotlib.animation import FuncAnimation
 # ──────── PARAMETERS ──────────────────────────────────────────────────────
 R              = 0.1            # radius of the circle  
 dt             = 0.02           # time-step              
-N              = 100            # number of time-steps
+N              = 200            # number of time-steps
 num_state      = 2              # [px, py]
 num_control    = 3              # [cx, cy, λ]  -> we plot cx, cy
 csv_file = ( Path(__file__).resolve().parent / "results" / f"results_pushcircle_sdf.csv" )
