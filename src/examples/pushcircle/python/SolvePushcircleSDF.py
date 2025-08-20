@@ -12,7 +12,7 @@ project_root = Path(__file__).resolve().parent.parent.parent.parent.parent      
 import pyCRISP
 
 # Set the hyperparameters
-R = 0.1
+R = 0.05
 num_state = 2
 num_control = 3
 N = 200

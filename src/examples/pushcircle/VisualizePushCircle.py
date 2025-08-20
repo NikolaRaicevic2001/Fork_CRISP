@@ -7,7 +7,7 @@ from matplotlib.patches import Circle
 from matplotlib.animation import FuncAnimation
 
 # ──────── PARAMETERS ──────────────────────────────────────────────────────
-R              = 0.1            # radius of the circle  
+R              = 0.05           # radius of the circle  
 dt             = 0.02           # time-step              
 N              = 200            # number of time-steps
 num_state      = 2              # [px, py]

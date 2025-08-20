@@ -6,7 +6,7 @@ from matplotlib.patches import Circle
 from multiprocessing import shared_memory
 
 # ── Hyperparameters ──────────────────────────────────────────────────────────
-R           = 0.10      # circle radius (meters)
+R           = 0.05      # circle radius (meters)
 dt          = 0.02      # time step (seconds)
 N           = 200       # horizon length
 num_state   = 2         # [px, py]

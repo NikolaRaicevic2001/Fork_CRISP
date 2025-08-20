@@ -10,7 +10,7 @@
 using namespace CRISP;
 
 // Define model parameters for circle
-const scalar_t R = 0.1;                 // radius of the circle
+const scalar_t R = 0.05;                // radius of the circle
 const scalar_t m = 1;                   // mass of the circle
 const scalar_t mu = 0.5;                // friction coefficient
 const scalar_t g = 9.8;                 // gravitational acceleration  
