@@ -10,7 +10,7 @@ using namespace CRISP;
 // Define model parameters for pushbox
 const scalar_t a = 0.1;
 const scalar_t b = 0.2;
-const scalar_t m = 1;
+const scalar_t m = 1.0;
 const scalar_t mu = 0.5;
 const scalar_t g = 9.8;
 const scalar_t r = sqrt(a * a + b * b);
@@ -186,13 +186,15 @@ int main(){
     SolverParameters params;
     SolverInterface solver(pushboxProblem, params);
     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
-    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e8));
-    solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-5));
-    solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
+    // solver.setHyperParameters("muMax", vector_t::Constant(1, 1e8));
+    solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-3));
+    solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-3));
     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
     size_t num_segments = 18;
         scalar_t theta = 12 * 2 * M_PI / num_segments;
         xFinalStates << 2*cos(theta), 2*sin(theta), theta;
+        std::cout << "Final state: " << xFinalStates.transpose() << std::endl;
+
         solver.setProblemParameters("pushboxObjective", xFinalStates);
         solver.initialize(xInitialGuess);
         solver.solve();

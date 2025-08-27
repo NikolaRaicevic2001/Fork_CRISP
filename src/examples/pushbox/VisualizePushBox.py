@@ -42,20 +42,17 @@ world_cx = px +  np.cos(theta)*cx  -  np.sin(theta)*cy
 world_cy = py +  np.sin(theta)*cx  +  np.cos(theta)*cy
 
 # ---------- CONTACT PATH METRICS ----------
-# Step-to-step distances (always defined)
+# Step-to-step distances 
 step_dx = np.diff(world_cx)
 step_dy = np.diff(world_cy)
-step_dist = np.hypot(step_dx, step_dy)            # length N-1
+step_dist = np.hypot(step_dx, step_dy)            
 total_contact_path_m = float(step_dist.sum())
 
 # Only count distance when contact is "active": lam can be (N, 1) or (N, 4) etc.; take row-wise norm
+CONTACT_EPS = 1e-6
 lam_arr = lam if lam.ndim == 2 else lam[:, None]
 contact_force_norm = np.linalg.norm(lam_arr, axis=1)
-
-# Heuristic threshold for "active" contact (tune as needed)
-CONTACT_EPS = 1e-6
 active = contact_force_norm > CONTACT_EPS
-# Count a step if contact is active at both k and k+1
 active_pairs = active[:-1] & active[1:]
 total_contact_path_active_m = float(step_dist[active_pairs].sum())
 
@@ -63,12 +60,10 @@ total_contact_path_active_m = float(step_dist[active_pairs].sum())
 active_time_s = active_pairs.sum() * dt
 avg_contact_speed_active_mps = (float(total_contact_path_active_m / active_time_s) if active_time_s > 0 else float("nan"))
 
-# Print metrics
 print(f"[Metrics] Total contact path (all steps): {total_contact_path_m:.6f} m")
 print(f"[Metrics] Total contact path (active only): {total_contact_path_active_m:.6f} m")
 print(f"[Metrics] Avg contact speed while active: {avg_contact_speed_active_mps:.6f} m/s")
 
-# Save metrics to JSON alongside your figures/animation
 metrics = {
     "total_contact_path_m": total_contact_path_m,
     "total_contact_path_active_m": total_contact_path_active_m,
@@ -108,11 +103,16 @@ fig.savefig(f"results/figures_{example_name}_{method}.png", dpi=100, bbox_inches
 # ---------- SIMPLE CARTOON ANIMATION ----------
 fig2, ax2 = plt.subplots(figsize=(7, 5))
 ax2.set_aspect("equal")
-ax2.set_xlim(px.min()-1.0, px.max()+1.0)
-ax2.set_ylim(py.min()-1.0, py.max()+1.0)
+ax2.set_xlim(px.min()-1.0, px.max()+1.5)
+ax2.set_ylim(py.min()-1.0, py.max()+1.5)
+
+# Artists
 box,   = ax2.plot([], [], 'k-', lw=2, label="box")
 center,= ax2.plot([], [], 'bo', ms=4, label="box center")
-contact_points, = ax2.plot([], [], 'ro', ms=6, label="contact points")
+ax2.plot(world_cx, world_cy, '--', color='gold', alpha=0.3, label='final trajectory')
+contact_path,    = ax2.plot([], [], '-', lw=2, color='y', alpha=0.9, label="contact path")
+contact_points,  = ax2.plot([], [], 'ro', ms=6, label="contact point")
+
 goal,  = ax2.plot([], [], 'r--', ms=4, label="goal")
 ax2.set_title("Push Box Animation")
 ax2.set_xlabel("x [m]")
@@ -123,19 +123,24 @@ def frame(k):
     # Rectangular corners (world frame)
     c, s = np.cos(theta[k]), np.sin(theta[k])
     R    = np.array([[c, -s],[s,  c]])
-    corners = np.array([[-a, -b],[ a, -b],[ a, b],[-a, b],[-a, -b]]).T          
+    corners = np.array([[-a, -b],[ a, -b],[ a, b],[-a, b],[-a, -b]]).T
     world  = R @ corners + np.array([[px[k]],[py[k]]])
 
     # Goal configuration (world frame)
-    R_goal = np.array([[np.cos(goal_state[2]), -np.sin(goal_state[2])],[np.sin(goal_state[2]), np.cos(goal_state[2])]])
+    R_goal = np.array([[np.cos(goal_state[2]), -np.sin(goal_state[2])],
+                       [np.sin(goal_state[2]),  np.cos(goal_state[2])]])
     goal_corner = R_goal @ corners + np.array([[goal_state[0]], [goal_state[1]]])
 
     # Update plot elements
     box.set_data(world[0], world[1])
     center.set_data([px[k]], [py[k]])
+
+    # NEW: update cumulative path up to frame k, and current contact point
+    contact_path.set_data(world_cx[:k+1], world_cy[:k+1])
     contact_points.set_data([world_cx[k]], [world_cy[k]])
+
     goal.set_data(goal_corner[0], goal_corner[1])
-    return box, center, contact_points, goal
+    return box, center, contact_path, contact_points, goal
 
 ani = FuncAnimation(fig2, frame, frames=N, interval=dt*1000, blit=True)
 ani.save(f"results/animation_{example_name}_{method}.gif", writer='pillow', fps=1/dt, dpi=100)
