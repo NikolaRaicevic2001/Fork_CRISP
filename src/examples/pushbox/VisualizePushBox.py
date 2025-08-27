@@ -7,12 +7,12 @@ from matplotlib.animation import FuncAnimation
 
 # ---------------- PARAMETERS ----------------
 # Define model parameters for pushbox
-a = 0.1                        # half width of the box
-b = 0.1                        # half height of the box
+a = 0.5                        # half width of the box
+b = 0.7                        # half height of the box
 dt = 0.1                       # time step (100 ms)
 N  = 100                       # number of time steps
 num_state   = 3                # STATE  (3) : [px, py, θ]
-example_name = "pushbox_sdf"    
+example_name = "pushbox"    
 
 if example_name == "pushbox":
     method = "actual"
