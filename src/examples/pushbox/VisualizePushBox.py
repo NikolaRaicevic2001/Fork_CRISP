@@ -8,11 +8,12 @@ from pathlib import Path
 
 # ---------------- PARAMETERS ----------------
 # Define model parameters for pushbox
-a = 0.1                        # half width of the box
-b = 0.2                        # half height of the box
+a = 0.05                        # half width of the box
+b = 0.05                        # half height of the box
 dt = 0.1                       # time step (100 ms)
 N  = 100                       # number of time steps
 num_state   = 3                # STATE  (3) : [px, py, θ]
+CONTACT_EPS = 1e-6
 example_name = "pushbox"    
 
 if example_name == "pushbox":
@@ -49,7 +50,6 @@ step_dist = np.hypot(step_dx, step_dy)
 total_contact_path_m = float(step_dist.sum())
 
 # Only count distance when contact is "active": lam can be (N, 1) or (N, 4) etc.; take row-wise norm
-CONTACT_EPS = 1e-6
 lam_arr = lam if lam.ndim == 2 else lam[:, None]
 contact_force_norm = np.linalg.norm(lam_arr, axis=1)
 active = contact_force_norm > CONTACT_EPS
@@ -135,7 +135,7 @@ def frame(k):
     box.set_data(world[0], world[1])
     center.set_data([px[k]], [py[k]])
 
-    # NEW: update cumulative path up to frame k, and current contact point
+    # Update cumulative path up to frame k, and current contact point
     contact_path.set_data(world_cx[:k+1], world_cy[:k+1])
     contact_points.set_data([world_cx[k]], [world_cy[k]])
 
