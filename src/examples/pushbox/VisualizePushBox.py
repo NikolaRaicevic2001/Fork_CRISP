@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import json
 
-from pathlib import Path
 from matplotlib.animation import FuncAnimation
+from pathlib import Path
 
 # ---------------- PARAMETERS ----------------
 # Define model parameters for pushbox
-a = 0.5                        # half width of the box
-b = 0.7                        # half height of the box
+a = 0.1                        # half width of the box
+b = 0.2                        # half height of the box
 dt = 0.1                       # time step (100 ms)
 N  = 100                       # number of time steps
 num_state   = 3                # STATE  (3) : [px, py, θ]
@@ -39,6 +40,47 @@ t               = np.arange(N) * dt
 
 world_cx = px +  np.cos(theta)*cx  -  np.sin(theta)*cy
 world_cy = py +  np.sin(theta)*cx  +  np.cos(theta)*cy
+
+# ---------- CONTACT PATH METRICS ----------
+# Step-to-step distances (always defined)
+step_dx = np.diff(world_cx)
+step_dy = np.diff(world_cy)
+step_dist = np.hypot(step_dx, step_dy)            # length N-1
+total_contact_path_m = float(step_dist.sum())
+
+# Only count distance when contact is "active": lam can be (N, 1) or (N, 4) etc.; take row-wise norm
+lam_arr = lam if lam.ndim == 2 else lam[:, None]
+contact_force_norm = np.linalg.norm(lam_arr, axis=1)
+
+# Heuristic threshold for "active" contact (tune as needed)
+CONTACT_EPS = 1e-6
+active = contact_force_norm > CONTACT_EPS
+# Count a step if contact is active at both k and k+1
+active_pairs = active[:-1] & active[1:]
+total_contact_path_active_m = float(step_dist[active_pairs].sum())
+
+# Average speed of the contact point while active 
+active_time_s = active_pairs.sum() * dt
+avg_contact_speed_active_mps = (float(total_contact_path_active_m / active_time_s) if active_time_s > 0 else float("nan"))
+
+# Print metrics
+print(f"[Metrics] Total contact path (all steps): {total_contact_path_m:.6f} m")
+print(f"[Metrics] Total contact path (active only): {total_contact_path_active_m:.6f} m")
+print(f"[Metrics] Avg contact speed while active: {avg_contact_speed_active_mps:.6f} m/s")
+
+# Save metrics to JSON alongside your figures/animation
+metrics = {
+    "total_contact_path_m": total_contact_path_m,
+    "total_contact_path_active_m": total_contact_path_active_m,
+    "avg_contact_speed_active_mps": avg_contact_speed_active_mps,
+    "dt": float(dt),
+    "N": int(N),
+    "example_name": example_name,
+    "method": method,
+}
+Path("results").mkdir(exist_ok=True, parents=True)
+with open(f"results/metrics_{example_name}_{method}.json", "w") as f:
+    json.dump(metrics, f, indent=2)
 
 # ---------- STATIC PLOTS ----------
 fig, ax = plt.subplots(3, 1, sharex=True, figsize=(7, 5))
