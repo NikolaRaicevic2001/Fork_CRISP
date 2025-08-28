@@ -13,6 +13,8 @@ num_state = 3                   # STATE  (3) :  [px, py, θ]
 num_control = 6                 # CONTROL (6) : [cx, cy, λ1-λ4]  
 N = 100                         # number of time steps      
 steps = 0                       # number of steps taken
+count = 0                       # counter for initial positions
+initial_position_list = np.array([[1,1,45 * np.pi / 180],[0.5,0.5,0]], dtype=np.float64)
 variableNum = N * (num_state + num_control)
 
 # Setting up the listener for shared memory
@@ -124,8 +126,8 @@ try:
         pad = max(a, b) + 0.2
         xmin, xmax = np.nanmin(px) - pad, np.nanmax(px) + pad
         ymin, ymax = np.nanmin(py) - pad, np.nanmax(py) + pad
-        ax_xy.set_xlim(xmin, xmax)
-        ax_xy.set_ylim(ymin, ymax)
+        ax_xy.set_xlim(xmin - 0.5, xmax + 0.5)
+        ax_xy.set_ylim(ymin - 0.5, ymax + 0.5)
 
         # Redraw (non-blocking)
         fig_xy.canvas.draw()
@@ -150,8 +152,10 @@ try:
         fig.canvas.flush_events()
 
         if steps%100 == 0:
-            crispInitialState_share[:] = np.array([1,1,45 * np.pi / 180], dtype=np.float64)  
-            print(f"[VisualizeLivePushBox] Initial state updated: {crispInitialState_share}")
+            if count < len(initial_position_list):
+                crispInitialState_share[:] = initial_position_list[count]
+                count += 1
+                print(f"[VisualizeLivePushBox] Initial state updated: {crispInitialState_share}")
 
         time.sleep(0.05)  # 20 Hz
 except KeyboardInterrupt:
