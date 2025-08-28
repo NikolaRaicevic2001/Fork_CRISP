@@ -151,11 +151,11 @@ try:
         fig.canvas.draw()
         fig.canvas.flush_events()
 
-        if steps%100 == 0:
-            if count < len(initial_position_list):
-                crispInitialState_share[:] = initial_position_list[count]
-                count += 1
-                print(f"[VisualizeLivePushBox] Initial state updated: {crispInitialState_share}")
+        # if steps%100 == 0:
+        #     if count < len(initial_position_list):
+        #         crispInitialState_share[:] = initial_position_list[count]
+        #         count += 1
+        #         print(f"[VisualizeLivePushBox] Initial state updated: {crispInitialState_share}")
 
         time.sleep(0.05)  # 20 Hz
 except KeyboardInterrupt:

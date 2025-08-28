@@ -268,7 +268,7 @@ int main(){
     xFinalStates << 1.5, 0.5, 0.0;
     std::cout << "Initial State: " << xInitialStates.transpose() << std::endl;
     std::cout << "Final State: " << xFinalStates.transpose() << std::endl;
-    // xInitialGuess = makeRandomInit(xInitialStates, xFinalStates, variableNum, /*seed=*/123, /*pos_sigma_frac=*/0.02, /*th_sigma=*/0.05, /*force_scale=*/0.5, /*edge_margin=*/1e-3);
+    // xInitialGuess = makeRandomInit(xInitialStates, xFinalStates, variableNum, /*seed=*/110, /*pos_sigma_frac=*/0.02, /*th_sigma=*/0.01, /*force_scale=*/0.5, /*edge_margin=*/1e-3);
 
     solver.setProblemParameters("pushboxObjective", xFinalStates);
     solver.initialize(xInitialGuess);
