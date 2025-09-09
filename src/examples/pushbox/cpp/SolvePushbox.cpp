@@ -250,7 +250,7 @@ int main(){
     vector_t xInitialGuess(variableNum);
     vector_t xOptimal(variableNum);
     // define a theta from 0 to 2pi, and define different final state for the problem with equal interval, for example 20 degree
-    xInitialStates << 0.4, 0.0, 0;
+    xInitialStates << 1.0, 0.2, 0;
     // set zero initial guess
     xInitialGuess.setZero();
     SolverParameters params;
@@ -265,7 +265,7 @@ int main(){
     size_t num_segments = 18;
     scalar_t theta = 12 * 2 * M_PI / num_segments;
     xFinalStates << 2*cos(theta), 2*sin(theta), theta;
-    xFinalStates << 0.4, 0.3, 0.0;
+    xFinalStates << 1.5, 0.5, 0.0;
     std::cout << "Initial State: " << xInitialStates.transpose() << std::endl;
     std::cout << "Final State: " << xFinalStates.transpose() << std::endl;
     // xInitialGuess = makeRandomInit(xInitialStates, xFinalStates, variableNum, /*seed=*/110, /*pos_sigma_frac=*/0.02, /*th_sigma=*/0.01, /*force_scale=*/0.5, /*edge_margin=*/1e-3);
