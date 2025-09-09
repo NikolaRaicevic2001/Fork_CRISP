@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from multiprocessing import shared_memory
 
 # Hyperparameters
-a = 0.1                         # half width of the box
-b = 0.1                         # half height of the box
+a = 0.05                         # half width of the box
+b = 0.05                        # half height of the box
 dt = 0.02                       # time step (20 ms) 
 num_state = 3                   # STATE  (3) :  [px, py, θ]
 num_control = 6                 # CONTROL (6) : [cx, cy, λ1-λ4]  
@@ -99,6 +99,8 @@ try:
         # World-frame contact point (matches your offline script)
         world_cx = px +  np.cos(theta)*cx  -  np.sin(theta)*cy
         world_cy = py +  np.sin(theta)*cx  +  np.cos(theta)*cy
+        print(f"[VisualizeLivePushBox] First few body contact points: ({cx[:5]}, {cy[:5]})")
+        print(f"[VisualizeLivePushBox] First few world contact points: ({world_cx[:5]}, {world_cy[:5]})")
 
         # Update full paths
         path_line.set_data(px, py)
