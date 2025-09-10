@@ -9,8 +9,8 @@
 using namespace CRISP;
 
 // Define model parameters for pushbox
-const scalar_t a = 0.05;
-const scalar_t b = 0.05;
+const scalar_t a = 0.1;
+const scalar_t b = 0.1;
 const scalar_t m = 1.0;
 const scalar_t mu = 0.5;
 const scalar_t g = 9.8;
