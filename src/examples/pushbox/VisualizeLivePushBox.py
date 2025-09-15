@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from multiprocessing import shared_memory
 
 # Hyperparameters
-a = 0.05                        # half width of the box
-b = 0.05                        # half height of the box
+a = 0.048                       # half width of the box
+b = 0.048                       # half height of the box
 dt = 0.02                       # time step (20 ms) 
 num_state = 3                   # STATE  (3) :  [px, py, θ]
 num_control = 6                 # CONTROL (6) : [cx, cy, λ1-λ4]  
