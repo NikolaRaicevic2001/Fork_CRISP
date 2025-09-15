@@ -48,3 +48,17 @@ RUN mkdir -p src/third_party/piqp/build && \
     cmake .. -DCMAKE_CXX_FLAGS="-march=native" -DBUILD_TESTS=OFF -DBUILD_BENCHMARKS=OFF && \
     cmake --build . --config Release -j$(nproc) && \
     cmake --install . --config Release
+
+
+
+# # Missing Qt dependencies for Pushbox visualization
+# apt install sudo
+# sudo apt-get update
+# sudo apt-get install -y \
+#   libx11-xcb1 libxcb1 libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+#   libxcb-render0 libxcb-render-util0 libxcb-shm0 libxcb-randr0 libxcb-xfixes0 \
+#   libxkbcommon0 libxkbcommon-x11-0 libxrender1 libxi6 libsm6 libfontconfig1 \
+#   libgl1 libegl1 libopengl0 libdbus-1-3 libglib2.0-0 qtbase5-dev \
+#   python3-pyqt5 qtwayland5
+
+  

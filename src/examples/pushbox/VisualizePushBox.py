@@ -8,8 +8,8 @@ from pathlib import Path
 
 # ---------------- PARAMETERS ----------------
 # Define model parameters for pushbox
-a = 0.1                        # half width of the box
-b = 0.1                        # half height of the box
+a = 0.05                       # half width of the box
+b = 0.05                       # half height of the box
 dt = 0.1                       # time step (100 ms)
 N  = 100                       # number of time steps
 num_state   = 3                # STATE  (3) : [px, py, θ]
@@ -29,7 +29,7 @@ elif example_name == "pushbox_sdf":
 num_segments    = 18            # number of segments for the goal circle
 theta_seg       = 12 * 2 * np.pi / num_segments  
 goal_state      = np.array([2 * np.cos(theta_seg), 2 * np.sin(theta_seg), theta_seg])  
-goal_state      = np.array([1.5, 0.5, 0.0])
+goal_state      = np.array([0.4, 0.3, 0.0])
 
 # ---------------- load data from CSV --------------------
 flat   = np.loadtxt(csv_file, dtype=float)          # 900 × 1
