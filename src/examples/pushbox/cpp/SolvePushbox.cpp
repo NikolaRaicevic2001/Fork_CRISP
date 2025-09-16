@@ -9,8 +9,8 @@
 using namespace CRISP;
 
 // Define model parameters for pushbox
-const scalar_t a = 0.048;
-const scalar_t b = 0.048;
+const scalar_t a = 0.1;
+const scalar_t b = 0.1;
 const scalar_t m = 1.0;
 const scalar_t mu = 0.5;
 const scalar_t g = 9.8;
@@ -24,70 +24,106 @@ const size_t num_control = 6;
 // Global variables for the problem
 static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();    
 
-// Warm start
+// // Function that generates a random vector of size num_state+num_control and then repeats it N times to form the initial guess
+// inline vector_t makeRandomFirstGuess(const size_t N, const size_t num_state, const size_t num_control, unsigned seed = 40)
+// {
+//     const size_t stride = num_state + num_control;   // expected 3 + 6 = 9
+//     vector_t x(N * stride);
+//     x.setZero();
+
+//     std::mt19937 rng(seed);
+//     std::uniform_real_distribution<double> U01(0.0, 1.0);
+//     std::normal_distribution<double>       N01(0.0, 1.0);
+
+//     // Build ONE random vector (knot)
+//     vector_t v(stride);
+//     v.setZero();
+
+//     // States: (px, py, theta)
+//     v[0] = U01(rng) * 4.0 - 2.0;         // px ∈ [-2, 2]
+//     v[1] = U01(rng) * 4.0 - 2.0;         // py ∈ [-2, 2]
+//     v[2] = U01(rng) * 2.0 * M_PI;        // θ  ∈ [0, 2π)
+
+//     // Contact point ON the perimeter (avoid corners with a small margin)
+//     const double corner_margin = 1e-3;
+//     int face = static_cast<int>(U01(rng) * 4.0);  // 0..3
+//     double cx = 0.0, cy = 0.0;
+//     switch (face) {
+//         case 0: // bottom edge: y = -b
+//             cy = -b;
+//             cx = (2.0 * U01(rng) - 1.0) * (a - corner_margin);
+//             break;
+//         case 1: // left edge: x = -a
+//             cx = -a;
+//             cy = (2.0 * U01(rng) - 1.0) * (b - corner_margin);
+//             break;
+//         case 2: // top edge: y = +b
+//             cy =  b;
+//             cx = (2.0 * U01(rng) - 1.0) * (a - corner_margin);
+//             break;
+//         default: // right edge: x = +a
+//             cx =  a;
+//             cy = (2.0 * U01(rng) - 1.0) * (b - corner_margin);
+//             break;
+//     }
+//     v[3] = cx;   // cx on edge
+//     v[4] = cy;   // cy on edge
+
+//     // Contact forces λ1..λ4 — one active with correct sign per face
+//     random_vector[5] = N01(rng);   // lambda1
+//     random_vector[6] = N01(rng);   // lambda2
+//     random_vector[7] = N01(rng);   // lambda3
+//     random_vector[8] = N01(rng);   // lambda4
+
+//     // Print the generated knot
+//     std::cout << "Generated random knot: " << v.transpose() << std::endl;
+
+//     // Repeat the same knot N times
+//     for (size_t i = 0; i < N; ++i)
+//         x.segment(i * stride, stride) = v;
+
+//     return x;
+// }
+
+// Function that generates a random vector of size num_state+num_control and then repeats it N times to form the initial guess
 static inline double clamp(double v, double lo, double hi){ return std::max(lo, std::min(hi, v));}
-vector_t makeRandomInit(const vector_t& x0, const vector_t& xg, const size_t variableNum,
-                        unsigned seed = 42,
-                        double pos_sigma_frac = 0.02,  // position jitter as fraction of path length
-                        double th_sigma = 0.05,        // rad jitter for theta
-                        double force_scale = 0.5,      // N-scale for lambda magnitudes
-                        double edge_margin = 1e-3)     // keep (cx,cy) off the exact edges
-{
+vector_t makeRandomFirstGuess(const size_t N, const size_t num_state, const size_t num_control, unsigned seed = 40)
+{ 
     std::mt19937 rng(seed);
     std::uniform_real_distribution<double> U01(0.0, 1.0);
     std::normal_distribution<double> N01(0.0, 1.0);
 
-    vector_t x(variableNum);
+    // Initial Guess Vector
+    vector_t x(N*(num_state + num_control));
     x.setZero();
 
-    // Path length to scale position noise
-    double L = std::hypot(xg[0] - x0[0], xg[1] - x0[1]);
-    double pos_sigma = pos_sigma_frac * std::max(1.0, L);
+    // Random vector of size num_state + num_control
+    vector_t random_vector(num_state + num_control);
+    random_vector.setZero();
 
-    // 1) States: straight-line + small jitter (no jitter at endpoints)
-    for (size_t k = 0; k < N; ++k) {
-        double alpha = (N == 1) ? 1.0 : double(k) / double(N - 1);
-        double jx = 0.0, jy = 0.0, jt = 0.0;
-        if (k != 0 && k != N - 1) {            // keep endpoints exact
-            jx = pos_sigma * N01(rng);
-            jy = pos_sigma * N01(rng);
-            jt = th_sigma  * N01(rng);
-        }
-        size_t idx = k * (num_state + num_control);
-        x[idx + 0] = (1 - alpha) * x0[0] + alpha * xg[0] + jx;   // px
-        x[idx + 1] = (1 - alpha) * x0[1] + alpha * xg[1] + jy;   // py
-        x[idx + 2] = (1 - alpha) * x0[2] + alpha * xg[2] + jt;   // theta
-    }
+    random_vector[0] = U01(rng) * 4.0 - 2.0;   // px in [-2, 2]
+    random_vector[1] = U01(rng) * 4.0 - 2.0;   // py in [-2, 2]
+    random_vector[2] = U01(rng) * 2.0 * M_PI;  // theta in [0, 2pi]
 
-    // 2) Contacts + forces: simple, sign-correct, single active face per k
-    for (size_t k = 0; k < N; ++k) {
-        size_t idx = k * (num_state + num_control);
+    // Random contact point inside box with a small safety margin
+    double edge_margin = 1e-3;
+    double cx = (2.0 * U01(rng) - 1.0) * (a - edge_margin);
+    double cy = (2.0 * U01(rng) - 1.0) * (b - edge_margin);
+    random_vector[3] = clamp(cx, -a + edge_margin,  a - edge_margin);   // cx
+    random_vector[4] = clamp(cy, -b + edge_margin,  b - edge_margin);   // cy
 
-        // Random contact point inside box with a small safety margin
-        double cx = (2.0 * U01(rng) - 1.0) * (a - edge_margin);
-        double cy = (2.0 * U01(rng) - 1.0) * (b - edge_margin);
+    // Random force values
+    random_vector[5] = N01(rng);   // lambda1
+    random_vector[6] = N01(rng);   // lambda2
+    random_vector[7] = N01(rng);   // lambda3
+    random_vector[8] = N01(rng);   // lambda4
 
-        // Pick one face to activate; draw a nonnegative magnitude
-        int face = int(4.0 * U01(rng));      // 0..3
-        double mag = force_scale * std::fabs(N01(rng));
-
-        double l1 = 0.0, l2 = 0.0, l3 = 0.0, l4 = 0.0;
-        switch (face) {
-            case 0: l1 = mag;     break;     // λ1 ≥ 0
-            case 1: l2 = mag;     break;     // λ2 ≥ 0
-            case 2: l3 = -mag;    break;     // λ3 ≤ 0
-            default:l4 = -mag;    break;     // λ4 ≤ 0
-        }
-
-        // Optional: taper forces to zero at the very ends
-        if (k == 0 || k == N - 1) l1 = l2 = l3 = l4 = 0.0;
-
-        x[idx + 3] = clamp(cx, -a + edge_margin,  a - edge_margin);   // cx
-        x[idx + 4] = clamp(cy, -b + edge_margin,  b - edge_margin);   // cy
-        x[idx + 5] = l1;
-        x[idx + 6] = l2;
-        x[idx + 7] = l3;
-        x[idx + 8] = l4;
+    // Print the generated random vector
+    std::cout << "Generated random vector: " << random_vector.transpose() << std::endl;
+    
+    // Repeat the random vector N times to form the initial guess
+    for (size_t i = 0; i < N; ++i) {
+        x.segment(i * (num_state + num_control), num_state + num_control) = random_vector; 
     }
 
     return x;
@@ -143,7 +179,7 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
                             lambda2_i,
                             -lambda3_i,
                             -lambda4_i,
-                            cy_i + b,
+                            cy_i + b,      
                             cx_i + a,
                             b - cy_i,
                             a - cx_i,
@@ -179,6 +215,11 @@ ad_function_t pushboxContactSingleForceConstraints = [](const ad_vector_t& x, ad
     y.segment(0, 3) << x[0] - p[0], x[1] - p[1], x[2] - p[2];
 };
 
+//     ad_function_with_param_t pushboxInitialConstraintsEE = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
+//     y.resize(2);
+//     y.segment(0, 2) << x[3] - p[0], x[4] - p[1];
+// };
+
 // cost function for pushbox
 ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
     y.resize(1);
@@ -187,6 +228,7 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
     ad_scalar_t control_cost(0.0);
     for (size_t i = 0; i < N; ++i) {
         size_t idx = i * (num_state + num_control);
+        size_t idx_next = (i+1) * (num_state + num_control);
         ad_scalar_t px_i = x[idx + 0];
         ad_scalar_t py_i = x[idx + 1];
         ad_scalar_t theta_i = x[idx + 2];
@@ -207,6 +249,10 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
         R(1, 1) = 0.001;
         R(2, 2) = 0.001;
         R(3, 3) = 0.001;
+        ad_matrix_t M(2, 2);
+        M.setZero();
+        M(0, 0) = 0.0001;
+        M(1, 1) = 0.0001;
 
         if (i == N - 1) {
             ad_vector_t tracking_error(num_state);
@@ -214,6 +260,16 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
             tracking_error << px_i - p[0], py_i - p[1], theta_i - p[2];
             tracking_cost += tracking_error.transpose() * Q * tracking_error;
 
+        }
+
+        // Penalize the difference between the contact point to prevent large jumps
+        if (i < N - 1) {
+            ad_vector_t contact_point_diff(2);
+            ad_scalar_t cx_next, cy_next;
+            cx_next = x[idx_next + 3];
+            cy_next = x[idx_next + 4];
+            contact_point_diff << cx_i - cx_next, cy_i - cy_next;
+            control_cost += contact_point_diff.transpose() * M * contact_point_diff;
         }
 
         if (i < N - 1) {
@@ -235,12 +291,14 @@ int main(){
     auto dynamics = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxDynamicConstraints", pushboxDynamicConstraints);
     auto contact = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxContactConstraints", pushboxContactConstraints);
     auto initial = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "pushboxInitialConstraints", pushboxInitialConstraints);
+    // auto initial_ee = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "pushboxInitialConstraintsEE", pushboxInitialConstraintsEE);
     auto contactSingleForce = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxContactSingleForceConstraints", pushboxContactSingleForceConstraints);
     // ---------------------- ! the above four lines are enough for generate the auto-differentiation functions library for this problem and the usage in python ! ---------------------- //
 
     pushboxProblem.addObjective(obj);
     pushboxProblem.addEqualityConstraint(dynamics);
     pushboxProblem.addEqualityConstraint(initial);
+    // pushboxProblem.addEqualityConstraint(initial_ee);
     pushboxProblem.addInequalityConstraint(contact);
     pushboxProblem.addInequalityConstraint(contactSingleForce);
 
@@ -248,19 +306,30 @@ int main(){
     vector_t xInitialStates(num_state);
     vector_t xFinalStates(num_state);
     vector_t xInitialGuess(variableNum);
+    vector_t xInitialStates_ee(2);
     vector_t xOptimal(variableNum);
     // define a theta from 0 to 2pi, and define different final state for the problem with equal interval, for example 20 degree
-    xInitialStates << 0.4, 0.0, 0;
+    // xInitialStates << 0.4, 0.0, 0;
+    // xInitialStates_ee << a, a;
+    xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
+
     // set zero initial guess
     xInitialGuess.setZero();
     SolverParameters params;
     SolverInterface solver(pushboxProblem, params);
     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
+    // solver.setHyperParameters("trustRegionInitRadius", vector_t::Constant(1, 1.0));
+    // solver.setHyperParameters("trustRegionMaxRadius", vector_t::Constant(1, 10.0));
+    // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));
+    // solver.setHyperParameters("etaHigh", vector_t::Constant(1, 0.75));
+    // solver.setHyperParameters("mu", vector_t::Constant(1, 10.0));
     solver.setHyperParameters("muMax", vector_t::Constant(1, 1e8));
     solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-5));
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
     solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-6));
     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
+    solver.setHyperParameters("WeightedTolFactor", vector_t::Constant(1, 10.0));
+    // solver.setHyperParameters("secondOrderCorrection", vector_t::Constant(1, 1));
 
     size_t num_segments = 18;
     scalar_t theta = 12 * 2 * M_PI / num_segments;
@@ -268,7 +337,7 @@ int main(){
     xFinalStates << 0.4, 0.3, 0.0;
     std::cout << "Initial State: " << xInitialStates.transpose() << std::endl;
     std::cout << "Final State: " << xFinalStates.transpose() << std::endl;
-    // xInitialGuess = makeRandomInit(xInitialStates, xFinalStates, variableNum, /*seed=*/110, /*pos_sigma_frac=*/0.02, /*th_sigma=*/0.01, /*force_scale=*/0.5, /*edge_margin=*/1e-3);
+    xInitialGuess = makeRandomFirstGuess(N, num_state, num_control, /*seed=*/45);
 
     solver.setProblemParameters("pushboxObjective", xFinalStates);
     solver.initialize(xInitialGuess);

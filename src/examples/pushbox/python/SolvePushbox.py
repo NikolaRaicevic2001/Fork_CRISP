@@ -101,6 +101,7 @@ print(f"[pyCRISP] Solution obtained: {solution.shape} , type of the solution {so
 
 try:
     while True:
+        # initial_state_ee = 
         initial_state = crispInitialState_share
         final_state = crispFinalState_share
         x_initial_guess = solution
