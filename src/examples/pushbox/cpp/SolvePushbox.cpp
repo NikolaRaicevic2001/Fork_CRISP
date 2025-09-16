@@ -1,5 +1,4 @@
 #include "solver_core/SolverInterface.h"
-// #include "common/MatlabHelper.h"
 #include <filesystem>
 #include <chrono>
 #include <random>   
@@ -23,67 +22,6 @@ const size_t num_control = 6;
 
 // Global variables for the problem
 static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();    
-
-// // Function that generates a random vector of size num_state+num_control and then repeats it N times to form the initial guess
-// inline vector_t makeRandomFirstGuess(const size_t N, const size_t num_state, const size_t num_control, unsigned seed = 40)
-// {
-//     const size_t stride = num_state + num_control;   // expected 3 + 6 = 9
-//     vector_t x(N * stride);
-//     x.setZero();
-
-//     std::mt19937 rng(seed);
-//     std::uniform_real_distribution<double> U01(0.0, 1.0);
-//     std::normal_distribution<double>       N01(0.0, 1.0);
-
-//     // Build ONE random vector (knot)
-//     vector_t v(stride);
-//     v.setZero();
-
-//     // States: (px, py, theta)
-//     v[0] = U01(rng) * 4.0 - 2.0;         // px ∈ [-2, 2]
-//     v[1] = U01(rng) * 4.0 - 2.0;         // py ∈ [-2, 2]
-//     v[2] = U01(rng) * 2.0 * M_PI;        // θ  ∈ [0, 2π)
-
-//     // Contact point ON the perimeter (avoid corners with a small margin)
-//     const double corner_margin = 1e-3;
-//     int face = static_cast<int>(U01(rng) * 4.0);  // 0..3
-//     double cx = 0.0, cy = 0.0;
-//     switch (face) {
-//         case 0: // bottom edge: y = -b
-//             cy = -b;
-//             cx = (2.0 * U01(rng) - 1.0) * (a - corner_margin);
-//             break;
-//         case 1: // left edge: x = -a
-//             cx = -a;
-//             cy = (2.0 * U01(rng) - 1.0) * (b - corner_margin);
-//             break;
-//         case 2: // top edge: y = +b
-//             cy =  b;
-//             cx = (2.0 * U01(rng) - 1.0) * (a - corner_margin);
-//             break;
-//         default: // right edge: x = +a
-//             cx =  a;
-//             cy = (2.0 * U01(rng) - 1.0) * (b - corner_margin);
-//             break;
-//     }
-//     v[3] = cx;   // cx on edge
-//     v[4] = cy;   // cy on edge
-
-//     // Contact forces λ1..λ4 — one active with correct sign per face
-//     random_vector[5] = N01(rng);   // lambda1
-//     random_vector[6] = N01(rng);   // lambda2
-//     random_vector[7] = N01(rng);   // lambda3
-//     random_vector[8] = N01(rng);   // lambda4
-
-//     // Print the generated knot
-//     std::cout << "Generated random knot: " << v.transpose() << std::endl;
-
-//     // Repeat the same knot N times
-//     for (size_t i = 0; i < N; ++i)
-//         x.segment(i * stride, stride) = v;
-
-//     return x;
-// }
 
 // Function that generates a random vector of size num_state+num_control and then repeats it N times to form the initial guess
 static inline double clamp(double v, double lo, double hi){ return std::max(lo, std::min(hi, v));}
@@ -309,9 +247,9 @@ int main(){
     vector_t xInitialStates_ee(2);
     vector_t xOptimal(variableNum);
     // define a theta from 0 to 2pi, and define different final state for the problem with equal interval, for example 20 degree
-    // xInitialStates << 0.4, 0.0, 0;
+    xInitialStates << 0.4, 0.0, 0;
     // xInitialStates_ee << a, a;
-    xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
+    // xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
 
     // set zero initial guess
     xInitialGuess.setZero();
@@ -337,7 +275,7 @@ int main(){
     xFinalStates << 0.4, 0.3, 0.0;
     std::cout << "Initial State: " << xInitialStates.transpose() << std::endl;
     std::cout << "Final State: " << xFinalStates.transpose() << std::endl;
-    xInitialGuess = makeRandomFirstGuess(N, num_state, num_control, /*seed=*/45);
+    xInitialGuess = makeRandomFirstGuess(N, num_state, num_control, /*seed=*/40);
 
     solver.setProblemParameters("pushboxObjective", xFinalStates);
     solver.initialize(xInitialGuess);
