@@ -35,13 +35,13 @@ vector_t makeRandomFirstGuess(const size_t N, const size_t num_state, const size
     vector_t x(N*(num_state + num_control));
     x.setZero();
 
-    // Random vector of size num_state + num_control
+    // Random vector of size num_state+num_control
     vector_t random_vector(num_state + num_control);
     random_vector.setZero();
 
     random_vector[0] = U01(rng) * 4.0 - 2.0;   // px in [-2, 2]
     random_vector[1] = U01(rng) * 4.0 - 2.0;   // py in [-2, 2]
-    random_vector[2] = U01(rng) * 2.0 * M_PI;  // theta in [0, 2pi]
+    random_vector[2] = U01(rng) * 1.0 * M_PI;  // theta in [0, pi]
 
     // Random contact point inside box with a small safety margin
     double edge_margin = 1e-3;
@@ -103,30 +103,61 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
     y.resize((N - 1) * 12);
     for (size_t i = 0; i < N - 1; ++i) {
         size_t idx = i * (num_state + num_control);
-        ad_scalar_t px_i = x[idx + 0];
-        ad_scalar_t py_i = x[idx + 1];
-        ad_scalar_t theta_i = x[idx + 2];
-        ad_scalar_t cx_i = x[idx + 3];
-        ad_scalar_t cy_i = x[idx + 4];
-        ad_scalar_t lambda1_i = x[idx + 5];
-        ad_scalar_t lambda2_i = x[idx + 6];
-        ad_scalar_t lambda3_i = x[idx + 7];
-        ad_scalar_t lambda4_i = x[idx + 8];
+        ad_scalar_t px_i        = x[idx + 0];
+        ad_scalar_t py_i        = x[idx + 1];
+        ad_scalar_t theta_i     = x[idx + 2];
+        ad_scalar_t cx_i        = x[idx + 3];
+        ad_scalar_t cy_i        = x[idx + 4];
+        ad_scalar_t lambda1_i   = x[idx + 5];
+        ad_scalar_t lambda2_i   = x[idx + 6];
+        ad_scalar_t lambda3_i   = x[idx + 7];
+        ad_scalar_t lambda4_i   = x[idx + 8];
 
-        y.segment(i * 12, 12) << lambda1_i,
-                            lambda2_i,
-                            -lambda3_i,
-                            -lambda4_i,
-                            cy_i + b,      
-                            cx_i + a,
-                            b - cy_i,
-                            a - cx_i,
-                            -(lambda1_i)*(cy_i+b),
-                            -(lambda2_i)*(cx_i+a),
-                            -(-lambda3_i)*(b-cy_i),
-                            -(-lambda4_i)*(a-cx_i);
+        // nonnegative force magnitudes on the 4 faces
+        ad_scalar_t f1 =  lambda1_i;   // bottom face
+        ad_scalar_t f2 =  lambda2_i;   // left face
+        ad_scalar_t f3 = -lambda3_i;   // top face   (note sign)
+        ad_scalar_t f4 = -lambda4_i;   // right face (note sign)
+
+        // interior gaps to the 4 faces (zero on the face)
+        ad_scalar_t g1 =  cy_i + b;   // bottom face y = -b
+        ad_scalar_t g2 =  cx_i + a;   // left   face x = -a
+        ad_scalar_t g3 =  b - cy_i;   // top    face y =  +b
+        ad_scalar_t g4 =  a - cx_i;   // right  face x =  +a
+
+        // use *squared* gaps: ψ_i = g_i^2 (smooth, ≥ 0, zero only on face)
+        ad_scalar_t psi1 = g1 * g1;
+        ad_scalar_t psi2 = g2 * g2;
+        ad_scalar_t psi3 = g3 * g3;
+        ad_scalar_t psi4 = g4 * g4;
+
+        // Pack: [ f>=0 ; psi>=0 ; -f.*psi >= 0 ]  (⇒ f_i * psi_i = 0)
+        y.segment(i * 12, 12) <<
+            f1, f2, f3, f4,     // nonnegative forces
+            g1, g2, g3, g4,     // nonnegative outside gaps
+            -(f1 * psi1),
+            -(f2 * psi2),
+            -(f3 * psi3),
+            -(f4 * psi4);
     }
 };
+
+// // contact equality constraints to ensure the contact point is on the box surface
+// ad_function_t pushboxOnSurfaceEq = [](const ad_vector_t& x, ad_vector_t& y) {
+//     y.resize(N - 1);
+//     for (size_t i = 0; i < N - 1; ++i) {
+//         size_t idx = i * (num_state + num_control);
+//         ad_scalar_t cx = x[idx + 3];
+//         ad_scalar_t cy = x[idx + 4];
+//         ad_scalar_t g1 = cy + b; 
+//         ad_scalar_t g2 = cx + a; 
+//         ad_scalar_t g3 = b - cy; 
+//         ad_scalar_t g4 = a - cx;
+
+//         // "On the rectangle boundary" ⇔ at least one gap is zero
+//         y[i] = g1 * g2 * g3 * g4;  // == 0
+//     }
+// };
 
 // allow only one contact force at a time
 ad_function_t pushboxContactSingleForceConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
@@ -148,15 +179,15 @@ ad_function_t pushboxContactSingleForceConstraints = [](const ad_vector_t& x, ad
 };
 
 // initial constraints
-    ad_function_with_param_t pushboxInitialConstraints = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
+ad_function_with_param_t pushboxInitialConstraints = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
     y.resize(3);
     y.segment(0, 3) << x[0] - p[0], x[1] - p[1], x[2] - p[2];
 };
 
-//     ad_function_with_param_t pushboxInitialConstraintsEE = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
-//     y.resize(2);
-//     y.segment(0, 2) << x[3] - p[0], x[4] - p[1];
-// };
+ad_function_with_param_t pushboxInitialConstraintsEndEffector = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
+    y.resize(2);
+    y.segment(0, 2) << x[3] - p[0], x[4] - p[1];
+};
 
 // cost function for pushbox
 ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
@@ -181,23 +212,34 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
         Q(0, 0) = 100;
         Q(1, 1) = 100;
         Q(2, 2) = 100;
-        ad_matrix_t R(4, 4);
-        R.setZero();
-        R(0, 0) = 0.001;
-        R(1, 1) = 0.001;
-        R(2, 2) = 0.001;
-        R(3, 3) = 0.001;
+        ad_matrix_t P(num_state, num_state);
+        P.setZero();
+        P(0, 0) = 0.01;
+        P(1, 1) = 0.01;
+        P(2, 2) = 0.01;
         ad_matrix_t M(2, 2);
         M.setZero();
-        M(0, 0) = 0.0001;
-        M(1, 1) = 0.0001;
+        M(0, 0) = 0.01;
+        M(1, 1) = 0.01;
+        ad_matrix_t R(4, 4);
+        R.setZero();
+        R(0, 0) = 0.0001;
+        R(1, 1) = 0.0001;
+        R(2, 2) = 0.0001;
+        R(3, 3) = 0.0001;
 
+        // Penalize the tracking error at the final time step
         if (i == N - 1) {
             ad_vector_t tracking_error(num_state);
-
             tracking_error << px_i - p[0], py_i - p[1], theta_i - p[2];
             tracking_cost += tracking_error.transpose() * Q * tracking_error;
+        }
 
+        // Penalize large distance traveled by the box
+        if (i < N - 1) {
+            ad_vector_t tracking_error_whole(num_state);
+            tracking_error_whole << px_i - p[0], py_i - p[1], theta_i - p[2];
+            tracking_cost += tracking_error_whole.transpose() * P * tracking_error_whole;
         }
 
         // Penalize the difference between the contact point to prevent large jumps
@@ -210,6 +252,7 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
             control_cost += contact_point_diff.transpose() * M * contact_point_diff;
         }
 
+        // Penalize the contact forces to prevent excessive forces
         if (i < N - 1) {
             ad_vector_t control_error(4);
             control_error << lambda1_i, lambda2_i, lambda3_i, lambda4_i;
@@ -225,20 +268,22 @@ int main(){
     std::string folderName = "model";
     OptimizationProblem pushboxProblem(variableNum, problemName);
 
-    auto obj = std::make_shared<ObjectiveFunction>(variableNum, num_state, problemName, folderName, "pushboxObjective", pushboxObjective);
     auto dynamics = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxDynamicConstraints", pushboxDynamicConstraints);
     auto contact = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxContactConstraints", pushboxContactConstraints);
-    auto initial = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "pushboxInitialConstraints", pushboxInitialConstraints);
-    // auto initial_ee = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "pushboxInitialConstraintsEE", pushboxInitialConstraintsEE);
+    // auto onSurface = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxOnSurfaceEq", pushboxOnSurfaceEq);
     auto contactSingleForce = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxContactSingleForceConstraints", pushboxContactSingleForceConstraints);
+    auto initial = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "pushboxInitialConstraints", pushboxInitialConstraints);
+    // auto initial_ee = std::make_shared<ConstraintFunction>(variableNum, 2, problemName, folderName, "pushboxInitialConstraintsEndEffector", pushboxInitialConstraintsEndEffector);
+    auto obj = std::make_shared<ObjectiveFunction>(variableNum, num_state, problemName, folderName, "pushboxObjective", pushboxObjective);
     // ---------------------- ! the above four lines are enough for generate the auto-differentiation functions library for this problem and the usage in python ! ---------------------- //
 
-    pushboxProblem.addObjective(obj);
     pushboxProblem.addEqualityConstraint(dynamics);
+    pushboxProblem.addInequalityConstraint(contact);
+    // pushboxProblem.addEqualityConstraint(onSurface);
+    pushboxProblem.addInequalityConstraint(contactSingleForce);
     pushboxProblem.addEqualityConstraint(initial);
     // pushboxProblem.addEqualityConstraint(initial_ee);
-    pushboxProblem.addInequalityConstraint(contact);
-    pushboxProblem.addInequalityConstraint(contactSingleForce);
+    pushboxProblem.addObjective(obj);
 
     // problem parameters
     vector_t xInitialStates(num_state);
@@ -246,16 +291,18 @@ int main(){
     vector_t xInitialGuess(variableNum);
     vector_t xInitialStates_ee(2);
     vector_t xOptimal(variableNum);
+
     // define a theta from 0 to 2pi, and define different final state for the problem with equal interval, for example 20 degree
-    xInitialStates << 0.4, 0.0, 0;
-    // xInitialStates_ee << a, a;
-    // xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
+    // xInitialStates << 0.4, 0.0, 0;
+    xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
+    xInitialStates_ee << 0.0, -4*b;
 
     // set zero initial guess
     xInitialGuess.setZero();
     SolverParameters params;
     SolverInterface solver(pushboxProblem, params);
     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
+    // solver.setProblemParameters("pushboxInitialConstraintsEndEffector", xInitialStates_ee);
     // solver.setHyperParameters("trustRegionInitRadius", vector_t::Constant(1, 1.0));
     // solver.setHyperParameters("trustRegionMaxRadius", vector_t::Constant(1, 10.0));
     // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));
@@ -281,6 +328,24 @@ int main(){
     solver.initialize(xInitialGuess);
     solver.solve();
     xOptimal = solver.getSolution();
+
+    ad_vector_t eq_values;
+    ad_vector_t ineq_values; 
+    ad_vector_t solution_ad = xOptimal.cast<ad_scalar_t>();
+    pushboxDynamicConstraints(solution_ad, eq_values);
+    pushboxContactConstraints(solution_ad, ineq_values);
+
+    // Print Inequality Constraint Values
+    std::cout << "Inequality Constraint Values (should be >= 0):" << std::endl;
+    for (size_t i = 0; i < 20; ++i) {
+        std::cout << "Constraint " << i << ": " << ineq_values[i] << std::endl;
+    }
+
+    // Print Equality Constraint Values
+    std::cout << "Equality Constraint Values (should be ~0):" << std::endl;
+    for (size_t i = 0; i < 20; ++i) {
+        std::cout << "Constraint " << i << ": " << eq_values[i] << std::endl;
+    }
 
     std::ofstream log(PROJECT_ROOT / "examples/pushbox/results/results_pushbox_actual.csv");
     for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
