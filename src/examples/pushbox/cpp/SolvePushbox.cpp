@@ -153,7 +153,7 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
         return 0.5 * (u + v + sqrt(d * d + eps));
     };
 
-    y.resize((N - 1) * 12);
+    y.resize((N - 1) * 16);
     for (size_t i = 0; i < N - 1; ++i) {
         size_t idx = i * (num_state + num_control);
         ad_scalar_t px_i        = x[idx + 0];
@@ -178,13 +178,19 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t psi3_n = (b - cy_i)*(b - cy_i); // y = +b
         ad_scalar_t psi4_n = (a - cx_i)*(a - cx_i); // x = +a
 
-        // tangential “overrun” (zero if within the segment, >0 if beyond the ends)
-        ad_scalar_t over_x = smax2(sabs(cx_i) - a, ad_scalar_t(0.0));   // >0 only when |cx|>a
-        ad_scalar_t over_y = smax2(sabs(cy_i) - b, ad_scalar_t(0.0));   // >0 only when |cy|>b
-        ad_scalar_t psi1_t = over_x*over_x;                             // bottom/top: cx must be within [-a,a]
-        ad_scalar_t psi3_t = over_x*over_x;
-        ad_scalar_t psi2_t = over_y*over_y;                             // left/right: cy must be within [-b,b]
-        ad_scalar_t psi4_t = over_y*over_y;
+        // // tangential “overrun” (zero if within the segment, >0 if beyond the ends)
+        // ad_scalar_t over_x = smax2(sabs(cx_i) - a, ad_scalar_t(0.0));   // >0 only when |cx|>a
+        // ad_scalar_t over_y = smax2(sabs(cy_i) - b, ad_scalar_t(0.0));   // >0 only when |cy|>b
+        // ad_scalar_t psi1_t = over_x*over_x;                             // bottom/top: cx must be within [-a,a]
+        // ad_scalar_t psi3_t = over_x*over_x;
+        // ad_scalar_t psi2_t = over_y*over_y;                             // left/right: cy must be within [-b,b]
+        // ad_scalar_t psi4_t = over_y*over_y;
+
+        // tangential “overrun” (linear)
+        ad_scalar_t tx_right =  cx_i - a;   // >0 if cx >  a
+        ad_scalar_t tx_left  = -cx_i - a;   // >0 if cx < -a
+        ad_scalar_t ty_top   =  cy_i - b;   // >0 if cy >  b
+        ad_scalar_t ty_bot   = -cy_i - b;   // >0 if cy < -b
 
         // // “outside or on boundary” guard (forbid interior):
         // // ax = |cx|-a, ay = |cy|-b ; outside iff max(ax, ay) >= 0
@@ -193,16 +199,20 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
         // ad_scalar_t outside_or_on = smax2(ax, ay); // must be >= 0
 
         // pack (>=0 is feasible)
-        y.segment(i * 12, 12) <<
+        y.segment(i * 16, 16) <<
             f1, f2, f3, f4,
             -(f1 * psi1_n),
             -(f2 * psi2_n),
             -(f3 * psi3_n),
             -(f4 * psi4_n),
-            -(f1 * psi1_t),
-            -(f2 * psi2_t),
-            -(f3 * psi3_t),
-            -(f4 * psi4_t);
+            -(f1 * tx_right),  // if f1>0 ⇒ cx ≤ a
+            -(f1 * tx_left),   // if f1>0 ⇒ cx ≥ -a
+            -(f2 * ty_top),    // if f2>0 ⇒ cy ≤ b
+            -(f2 * ty_bot),    // if f2>0 ⇒ cy ≥ -b
+            -(f3 * tx_right),  // if f3>0 ⇒ cx ≤ a
+            -(f3 * tx_left),   // if f3>0 ⇒ cx ≥ -a
+            -(f4 * ty_top),    // if f4>0 ⇒ cy ≤ b
+            -(f4 * ty_bot);    // if f4>0 ⇒ cy ≥ -b
             // outside_or_on;
     }
 };
@@ -284,8 +294,8 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
         P(2, 2) = 0.01;
         ad_matrix_t M(2, 2);
         M.setZero();
-        M(0, 0) = 0.01;
-        M(1, 1) = 0.01;
+        M(0, 0) = 0.05;
+        M(1, 1) = 0.05;
         ad_matrix_t R(4, 4);
         R.setZero();
         R(0, 0) = 0.0001;
@@ -358,9 +368,9 @@ int main(){
     vector_t xOptimal(variableNum);
 
     // define a theta from 0 to 2pi, and define different final state for the problem with equal interval, for example 20 degree
-    // xInitialStates << 0.4, 0.0, 0.2;
+    xInitialStates << 0.4, 0.0, 0.2;
     // xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
-    xInitialStates << 0.35766736, 0.08357876, 0.42412436;  // Suboptimal initial condition
+    // xInitialStates << 0.35766736, 0.08357876, 0.42412436;  // Suboptimal initial condition
     xInitialStates_ee << 0.0, -4*b;
 
     // set zero initial guess
@@ -374,7 +384,7 @@ int main(){
     // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));
     // solver.setHyperParameters("etaHigh", vector_t::Constant(1, 0.75));
     // solver.setHyperParameters("mu", vector_t::Constant(1, 10.0));
-    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e15));
+    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e8));
     solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-5));
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
     solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-6));
