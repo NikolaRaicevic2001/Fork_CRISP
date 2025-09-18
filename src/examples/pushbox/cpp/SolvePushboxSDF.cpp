@@ -161,8 +161,8 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
         const ad_scalar_t torque_z = lam_i * (cx_i*n_i.y() - cy_i*n_i.x());
 
         const ad_scalar_t denom_lin = ad_scalar_t(mu * m * g);
-        // const ad_scalar_t denom_ang = ad_scalar_t(mu * m * g * c * r);
-        const ad_scalar_t denom_ang = ad_scalar_t(0.10);
+        const ad_scalar_t denom_ang = ad_scalar_t(mu * m * g * c * r);
+        // const ad_scalar_t denom_ang = ad_scalar_t(0.10);
 
         const ad_scalar_t px_dot  = Fx / denom_lin;
         const ad_scalar_t py_dot  = Fy / denom_lin;
@@ -225,7 +225,7 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
         ad_scalar_t lam_i = x[idx + 5];
 
         ad_matrix_t Q(num_state, num_state);
-        Q.setZero(); Q(0,0)=100; Q(1,1)=100; Q(2,2)=100;
+        Q.setZero(); Q(0,0)=1; Q(1,1)=1; Q(2,2)=0.;
 
         V2ad p_i; p_i << cx_i, cy_i;
         auto sdf = CRISP::sdf::sdfBoxRoundedSmooth<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
@@ -345,6 +345,8 @@ int main() {
 
     // choose a final target on a circle
     xFinalStates << 2*std::cos(theta), 2*std::sin(theta), theta;
+    std::cout << "Initial State: " << xInitialStates.transpose() << std::endl;
+    std::cout << "Final State: " << xFinalStates.transpose() << std::endl;
     solver.setProblemParameters("pushboxObjective", xFinalStates);
 
     // Check constraints at initial guess

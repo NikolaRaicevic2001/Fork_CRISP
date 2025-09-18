@@ -30,6 +30,8 @@ num_segments    = 18            # number of segments for the goal circle
 theta_seg       = 12 * 2 * np.pi / num_segments  
 goal_state      = np.array([2 * np.cos(theta_seg), 2 * np.sin(theta_seg), theta_seg])  
 goal_state      = np.array([0.4, 0.3, 0.0])
+# goal_state      = np.array([-1, -1.73205, 4.18879])
+
 
 # ---------------- load data from CSV --------------------
 flat   = np.loadtxt(csv_file, dtype=float)          # 900 × 1
