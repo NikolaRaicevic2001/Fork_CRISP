@@ -14,12 +14,17 @@ dt = 0.1                       # time step (100 ms)
 N  = 100                       # number of time steps
 num_state   = 3                # STATE  (3) : [px, py, θ]
 CONTACT_EPS = 1e-6
-example_name = "pushbox"    
+example_name = "pushbox_single"    
 
 if example_name == "pushbox":
     method = "actual"
     num_control = 6             # CONTROL (6) : [cx, cy, λ1-λ4]  (cx, cy plotted)
     csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}_{method}.csv" 
+elif example_name == "pushbox_single":
+    example_name = "pushbox"
+    method = "single"
+    num_control = 5             
+    csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}_{method}.csv"
 elif example_name == "pushbox_sdf":
     method = "roundedsmooth"
     num_control = 3             # CONTROL (3) : [cx, cy, λ]  (cx, cy plotted)
@@ -39,7 +44,7 @@ data   = flat.reshape(N, num_state + num_control)
 
 px, py, theta   = data[:, 0], data[:, 1], data[:, 2]
 cx,  cy         = data[:, 3], data[:, 4]
-lam             = data[:, 5:]  
+lam             = data[:, 5]  
 t               = np.arange(N) * dt
 
 world_cx = px +  np.cos(theta)*cx  -  np.sin(theta)*cy

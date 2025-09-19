@@ -18,7 +18,7 @@ const scalar_t c = 0.4;
 const scalar_t dt = 0.02;
 const size_t N = 100;                   
 const size_t num_state = 3;
-const size_t num_control = 6;
+const size_t num_control = 5;
 
 // Global variables for the problem
 static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();    
@@ -51,10 +51,9 @@ vector_t makeRandomFirstGuess(const size_t N, const size_t num_state, const size
     random_vector[4] = clamp(cy, -b + edge_margin,  b - edge_margin);   // cy
 
     // Random force values
-    random_vector[5] = N01(rng);   // lambda1
-    random_vector[6] = N01(rng);   // lambda2
-    random_vector[7] = N01(rng);   // lambda3
-    random_vector[8] = N01(rng);   // lambda4
+    random_vector[5] = N01(rng);   // lambda
+    random_vector[6] = N01(rng);   // ux
+    random_vector[7] = N01(rng);   // uy
 
     // Print the generated random vector
     std::cout << "Generated random vector: " << random_vector.transpose() << std::endl;
@@ -69,47 +68,66 @@ vector_t makeRandomFirstGuess(const size_t N, const size_t num_state, const size
 
 // Define the dynamics constraints
 ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
+    const ad_scalar_t eps = ad_scalar_t(1e-12);
+
+    auto sgn_smooth = [&](const ad_scalar_t& z) {
+        // smooth sign to keep derivatives well-behaved at 0
+        return z / CppAD::sqrt(z * z + eps);
+    };
+
     y.resize((N - 1) * num_state);
+
     for (size_t i = 0; i < N - 1; ++i) {
-        size_t idx = i * (num_state + num_control);
         // Extract state and control for current and next time steps
+        const size_t idx = i * (num_state + num_control);
         ad_scalar_t px_i        = x[idx + 0];
         ad_scalar_t py_i        = x[idx + 1];
         ad_scalar_t theta_i     = x[idx + 2];
         ad_scalar_t cx_i        = x[idx + 3];
         ad_scalar_t cy_i        = x[idx + 4];
-        ad_scalar_t lambda1_i   = x[idx + 5];
-        ad_scalar_t lambda2_i   = x[idx + 6];
-        ad_scalar_t lambda3_i   = x[idx + 7];
-        ad_scalar_t lambda4_i   = x[idx + 8];
+        ad_scalar_t lambda_i    = x[idx + 5];
+        ad_scalar_t ux_i        = x[idx + 6];
+        ad_scalar_t uy_i        = x[idx + 7];
 
         ad_scalar_t px_next     = x[idx + (num_state + num_control) + 0];
         ad_scalar_t py_next     = x[idx + (num_state + num_control) + 1];
         ad_scalar_t theta_next  = x[idx + (num_state + num_control) + 2];
 
-        ad_scalar_t px_dot      = (1/(mu*m*g))*(cos(theta_i)*(lambda2_i + lambda4_i) - sin(theta_i)*(lambda1_i + lambda3_i));
-        ad_scalar_t py_dot      = (1/(mu*m*g))*(sin(theta_i)*(lambda2_i + lambda4_i) + cos(theta_i)*(lambda1_i + lambda3_i));
-        ad_scalar_t theta_dot   = (1/(mu*m*g*c*r))*(-cy_i*(lambda2_i + lambda4_i) + cx_i*(lambda1_i + lambda3_i));
+        // Face weights (swap logic): on x-face -> uy>0, on y-face -> ux>0
+        const ad_scalar_t denom = ux_i + uy_i + eps;
+        const ad_scalar_t wx = uy_i / denom; // weight for x-normal (x-face)
+        const ad_scalar_t wy = ux_i / denom; // weight for y-normal (y-face)
 
-        // Explicit State Update
-        y.segment(i * num_state, num_state) <<  px_next - px_i - px_dot * dt,
-                                                py_next - py_i - py_dot * dt,
-                                                theta_next - theta_i - theta_dot * dt;
+        // Outward normal signs in box frame
+        const ad_scalar_t nx = sgn_smooth(cx_i); // +1 on right face, -1 on left
+        const ad_scalar_t ny = sgn_smooth(cy_i); // +1 on top face,  -1 on bottom
+
+        // Body-frame contact force from single λ
+        const ad_scalar_t fx_b = lambda_i * wx * nx;
+        const ad_scalar_t fy_b = lambda_i * wy * ny;
+
+        // Rotate force to world and Torque about COM (lever arm in box frame)
+        const ad_scalar_t fx_w =  cos(theta_i) * fx_b - sin(theta_i) * fy_b;
+        const ad_scalar_t fy_w =  sin(theta_i) * fx_b + cos(theta_i) * fy_b;
+        const ad_scalar_t tau  = cx_i * fy_b - cy_i * fx_b;
+
+        // Scaling
+        const ad_scalar_t inv = ad_scalar_t(1.0) / (mu * m * g);
+        const ad_scalar_t px_dot    = inv * fx_w;
+        const ad_scalar_t py_dot    = inv * fy_w;
+        const ad_scalar_t theta_dot = inv * (tau / (c * r));
+
+        // Explicit Euler defects
+        y.segment(i * num_state, num_state) <<
+            (px_next    - px_i    - px_dot    * dt),
+            (py_next    - py_i    - py_dot    * dt),
+            (theta_next - theta_i - theta_dot * dt);
     }
 };
 
+
 ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
-    const scalar_t eps = 1e-12;
-
-    auto sabs = [&](const ad_scalar_t& z) {// smooth |z|
-        return sqrt(z * z + eps);
-    };
-    auto smax2 = [&](const ad_scalar_t& u, const ad_scalar_t& v) { // smooth max(u,v)
-        ad_scalar_t d = u - v;
-        return 0.5 * (u + v + sqrt(d * d + eps));
-    };
-
-    y.resize((N - 1) * 16);
+    y.resize((N - 1) * 8);
     for (size_t i = 0; i < N - 1; ++i) {
         size_t idx = i * (num_state + num_control);
         ad_scalar_t px_i        = x[idx + 0];
@@ -117,70 +135,24 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t theta_i     = x[idx + 2];
         ad_scalar_t cx_i        = x[idx + 3];
         ad_scalar_t cy_i        = x[idx + 4];
-        ad_scalar_t lambda1_i   = x[idx + 5];
-        ad_scalar_t lambda2_i   = x[idx + 6];
-        ad_scalar_t lambda3_i   = x[idx + 7];
-        ad_scalar_t lambda4_i   = x[idx + 8];
+        ad_scalar_t lambda_i    = x[idx + 5];
+        ad_scalar_t ux_i        = x[idx + 6];
+        ad_scalar_t uy_i        = x[idx + 7];
 
-        // nonnegative force magnitudes on the 4 faces
-        ad_scalar_t f1 =  lambda1_i;   // bottom face
-        ad_scalar_t f2 =  lambda2_i;   // left face
-        ad_scalar_t f3 = -lambda3_i;   // top face   (note sign)
-        ad_scalar_t f4 = -lambda4_i;   // right face (note sign)
-
-        // normal “gaps” (zero on each face), square them to get smooth ψ^n >= 0
-        ad_scalar_t psi1_n = (cy_i + b)*(cy_i + b); // y = -b
-        ad_scalar_t psi2_n = (cx_i + a)*(cx_i + a); // x = -a
-        ad_scalar_t psi3_n = (b - cy_i)*(b - cy_i); // y = +b
-        ad_scalar_t psi4_n = (a - cx_i)*(a - cx_i); // x = +a
-
-        // tangential “overrun” (linear)
-        ad_scalar_t tx_right =  cx_i - a;   // >0 if cx >  a
-        ad_scalar_t tx_left  = -cx_i - a;   // >0 if cx < -a
-        ad_scalar_t ty_top   =  cy_i - b;   // >0 if cy >  b
-        ad_scalar_t ty_bot   = -cy_i - b;   // >0 if cy < -b
-
-        // // “outside or on boundary” guard (forbid interior):
-        // // ax = |cx|-a, ay = |cy|-b ; outside iff max(ax, ay) >= 0
-        // ad_scalar_t ax = sabs(cx_i) - a;
-        // ad_scalar_t ay = sabs(cy_i) - b;
-        // ad_scalar_t outside_or_on = smax2(ax, ay); // must be >= 0
+        // signed "inside-ness" per coord: >0 inside, =0 on face, <0 strictly outside
+        const ad_scalar_t sx = 1.0 - (cx_i / a) * (cx_i / a);
+        const ad_scalar_t sy = 1.0 - (cy_i / b) * (cy_i / b);
 
         // pack (>=0 is feasible)
-        y.segment(i * 16, 16) <<
-            f1, f2, f3, f4,
-            -(f1 * psi1_n),
-            -(f2 * psi2_n),
-            -(f3 * psi3_n),
-            -(f4 * psi4_n),
-            -(f1 * tx_right),  // if f1>0 ⇒ cx ≤ a
-            -(f1 * tx_left),   // if f1>0 ⇒ cx ≥ -a
-            -(f2 * ty_top),    // if f2>0 ⇒ cy ≤ b
-            -(f2 * ty_bot),    // if f2>0 ⇒ cy ≥ -b
-            -(f3 * tx_right),  // if f3>0 ⇒ cx ≤ a
-            -(f3 * tx_left),   // if f3>0 ⇒ cx ≥ -a
-            -(f4 * ty_top),    // if f4>0 ⇒ cy ≤ b
-            -(f4 * ty_bot);    // if f4>0 ⇒ cy ≥ -b
-            // outside_or_on;
-    }
-};
-
-// allow only one contact force at a time
-ad_function_t pushboxContactSingleForceConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
-    y.resize((N - 1) * 6);
-    for (size_t i = 0; i < N - 1; ++i) {
-        size_t idx = i * (num_state + num_control);
-        ad_scalar_t lambda1_i = x[idx + 5];
-        ad_scalar_t lambda2_i = x[idx + 6];
-        ad_scalar_t lambda3_i = x[idx + 7];
-        ad_scalar_t lambda4_i = x[idx + 8];
-
-        y.segment(i * 6, 6) << -(lambda1_i * lambda2_i),
-                            -(lambda1_i * (-lambda3_i)),
-                            -(lambda1_i * (-lambda4_i)),
-                            -(lambda2_i * (-lambda3_i)),
-                            -(lambda2_i * (-lambda4_i)),
-                            -(-lambda3_i * (-lambda4_i));
+        y.segment(i * 8, 8) <<
+            ux_i,
+            uy_i,
+            (ux_i - sx),
+            (uy_i - sy),
+            -(ux_i * uy_i),
+            lambda_i,
+            (lambda_i * sx),
+            (lambda_i * sy);
     }
 };
 
@@ -190,10 +162,10 @@ ad_function_with_param_t pushboxInitialConstraints = [](const ad_vector_t& x, co
     y.segment(0, 3) << x[0] - p[0], x[1] - p[1], x[2] - p[2];
 };
 
-ad_function_with_param_t pushboxInitialConstraintsEndEffector = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
-    y.resize(2);
-    y.segment(0, 2) << x[3] - p[0], x[4] - p[1];
-};
+// ad_function_with_param_t pushboxInitialConstraintsEndEffector = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
+//     y.resize(2);
+//     y.segment(0, 2) << x[3] - p[0], x[4] - p[1];
+// };
 
 // cost function for pushbox
 ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
@@ -204,15 +176,14 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
     for (size_t i = 0; i < N; ++i) {
         size_t idx = i * (num_state + num_control);
         size_t idx_next = (i+1) * (num_state + num_control);
-        ad_scalar_t px_i = x[idx + 0];
-        ad_scalar_t py_i = x[idx + 1];
-        ad_scalar_t theta_i = x[idx + 2];
-        ad_scalar_t cx_i = x[idx + 3];
-        ad_scalar_t cy_i = x[idx + 4];
-        ad_scalar_t lambda1_i = x[idx + 5];
-        ad_scalar_t lambda2_i = x[idx + 6];
-        ad_scalar_t lambda3_i = x[idx + 7];
-        ad_scalar_t lambda4_i = x[idx + 8];
+        ad_scalar_t px_i        = x[idx + 0];
+        ad_scalar_t py_i        = x[idx + 1];
+        ad_scalar_t theta_i     = x[idx + 2];
+        ad_scalar_t cx_i        = x[idx + 3];
+        ad_scalar_t cy_i        = x[idx + 4];
+        ad_scalar_t lambda_i    = x[idx + 5];
+        ad_scalar_t ux_i        = x[idx + 6];
+        ad_scalar_t uy_i        = x[idx + 7];
         ad_matrix_t Q(num_state, num_state);
         Q.setZero();
         Q(0, 0) = 100;
@@ -227,12 +198,9 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
         M.setZero();
         M(0, 0) = 0.05;
         M(1, 1) = 0.05;
-        ad_matrix_t R(4, 4);
+        ad_matrix_t R(1, 1);
         R.setZero();
         R(0, 0) = 0.0001;
-        R(1, 1) = 0.0001;
-        R(2, 2) = 0.0001;
-        R(3, 3) = 0.0001;
 
         // Penalize the tracking error at the final time step
         if (i == N - 1) {
@@ -260,8 +228,8 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
 
         // Penalize the contact forces to prevent excessive forces
         if (i < N - 1) {
-            ad_vector_t control_error(4);
-            control_error << lambda1_i, lambda2_i, lambda3_i, lambda4_i;
+            ad_vector_t control_error(1);
+            control_error << lambda_i;
             control_cost += control_error.transpose() * R * control_error;
         }
     }
@@ -276,38 +244,36 @@ int main(){
 
     auto dynamics = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxDynamicConstraints", pushboxDynamicConstraints);
     auto contact = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxContactConstraints", pushboxContactConstraints);
-    auto contactSingleForce = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxContactSingleForceConstraints", pushboxContactSingleForceConstraints);
     auto initial = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "pushboxInitialConstraints", pushboxInitialConstraints);
-    auto initial_ee = std::make_shared<ConstraintFunction>(variableNum, 2, problemName, folderName, "pushboxInitialConstraintsEndEffector", pushboxInitialConstraintsEndEffector);
+    // auto initial_ee = std::make_shared<ConstraintFunction>(variableNum, 2, problemName, folderName, "pushboxInitialConstraintsEndEffector", pushboxInitialConstraintsEndEffector);
     auto obj = std::make_shared<ObjectiveFunction>(variableNum, num_state, problemName, folderName, "pushboxObjective", pushboxObjective);
     // ---------------------- ! the above four lines are enough for generate the auto-differentiation functions library for this problem and the usage in python ! ---------------------- //
 
     pushboxProblem.addEqualityConstraint(dynamics);
     pushboxProblem.addInequalityConstraint(contact);
-    pushboxProblem.addInequalityConstraint(contactSingleForce);
     pushboxProblem.addEqualityConstraint(initial);
-    pushboxProblem.addEqualityConstraint(initial_ee);
+    // pushboxProblem.addEqualityConstraint(initial_ee);
     pushboxProblem.addObjective(obj);
 
     // problem parameters
     vector_t xInitialStates(num_state);
     vector_t xFinalStates(num_state);
     vector_t xInitialGuess(variableNum);
-    vector_t xInitialStates_ee(2);
+    // vector_t xInitialStates_ee(2);
     vector_t xOptimal(variableNum);
 
     // define a theta from 0 to 2pi, and define different final state for the problem with equal interval, for example 20 degree
-    // xInitialStates << 0.4, 0.0, 0.2;
+    xInitialStates << 0.4, 0.0, 0.0;
     // xInitialStates << 0.35766736, 0.08357876, 0.42412436;  // Suboptimal initial condition
-    xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
-    xInitialStates_ee << 0.0, -4*b;
+    // xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
+    // xInitialStates_ee << 0.0, -4*b;
 
     // set zero initial guess
     xInitialGuess.setZero();
     SolverParameters params;
     SolverInterface solver(pushboxProblem, params);
     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
-    solver.setProblemParameters("pushboxInitialConstraintsEndEffector", xInitialStates_ee);
+    // solver.setProblemParameters("pushboxInitialConstraintsEndEffector", xInitialStates_ee);
     // solver.setHyperParameters("trustRegionInitRadius", vector_t::Constant(1, 1.0));
     // solver.setHyperParameters("trustRegionMaxRadius", vector_t::Constant(1, 10.0));
     // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));
@@ -352,7 +318,7 @@ int main(){
         std::cout << "Constraint " << i << ": " << eq_values[i] << std::endl;
     }
 
-    std::ofstream log(PROJECT_ROOT / "examples/pushbox/results/results_pushbox_actual.csv");
+    std::ofstream log(PROJECT_ROOT / "examples/pushbox/results/results_pushbox_single.csv");
     for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
     log.close();                              
 

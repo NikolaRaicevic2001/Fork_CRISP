@@ -1,0 +1,9 @@
+{
+  "total_contact_path_m": 3.72982811568815e-11,
+  "total_contact_path_active_m": 0.0,
+  "avg_contact_speed_active_mps": NaN,
+  "dt": 0.1,
+  "N": 100,
+  "example_name": "pushbox",
+  "method": "single"
+}

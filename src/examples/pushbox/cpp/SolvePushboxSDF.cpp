@@ -255,9 +255,9 @@ int main() {
     std::string folderName = "model";
     OptimizationProblem pushboxProblem(variableNum, problemName);
 
-    auto obj      = std::make_shared<ObjectiveFunction>(variableNum, num_state, problemName, folderName, "pushboxObjective",          pushboxObjective);
-    auto dynamics = std::make_shared<ConstraintFunction>(variableNum,          problemName, folderName, "pushboxDynamicConstraints",  pushboxDynamicConstraints);
-    auto contact  = std::make_shared<ConstraintFunction>(variableNum,          problemName, folderName, "pushboxContactConstraints",  pushboxContactConstraints);
+    auto obj      = std::make_shared<ObjectiveFunction>(variableNum, num_state, problemName, folderName, "pushboxObjective", pushboxObjective);
+    auto dynamics = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxDynamicConstraints", pushboxDynamicConstraints);
+    auto contact  = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxContactConstraints", pushboxContactConstraints);
     auto initial  = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "pushboxInitialConstraints", pushboxInitialConstraints);
     // ---------------------- ! the above four lines are enough for generate the auto-differentiation functions library for this problem and the usage in python ! ---------------------- //
 
@@ -272,7 +272,7 @@ int main() {
     vector_t xInitialGuess(variableNum);
     vector_t xOptimal(variableNum);
 
-    xInitialStates << 0, 0, 0;
+    xInitialStates << 0.4, 0.0, 0.0;
 
     // Setting initial guess
     xInitialGuess.setZero();
@@ -339,31 +339,31 @@ int main() {
 
     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
     solver.setHyperParameters("muMax", vector_t::Constant(1, 1e12));
-    solver.setHyperParameters("trailTol",       vector_t::Constant(1, 1e-5));
+    solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-5));
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
-    solver.setHyperParameters("WeightedMode",   vector_t::Constant(1, 1));
+    solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
 
     // choose a final target on a circle
-    xFinalStates << 2*std::cos(theta), 2*std::sin(theta), theta;
+    xFinalStates << 0.4, 0.3, 0.0;
     std::cout << "Initial State: " << xInitialStates.transpose() << std::endl;
     std::cout << "Final State: " << xFinalStates.transpose() << std::endl;
     solver.setProblemParameters("pushboxObjective", xFinalStates);
 
-    // Check constraints at initial guess
-    const vector_t ineq_init = pushboxProblem.evaluateInequalityConstraints(xInitialGuess);
-    printIneq(ineq_init, "[INEQ @ init]");
-    const vector_t eq_init = pushboxProblem.evaluateEqualityConstraints(xInitialGuess);
-    printEq(eq_init, "[EQ   @ init]", static_cast<int>(N), xInitialGuess);
+    // // Check constraints at initial guess
+    // const vector_t ineq_init = pushboxProblem.evaluateInequalityConstraints(xInitialGuess);
+    // printIneq(ineq_init, "[INEQ @ init]");
+    // const vector_t eq_init = pushboxProblem.evaluateEqualityConstraints(xInitialGuess);
+    // printEq(eq_init, "[EQ   @ init]", static_cast<int>(N), xInitialGuess);
 
     solver.initialize(xInitialGuess);
     solver.solve();
     xOptimal = solver.getSolution();
 
-    // Check constraints at solution
-    const vector_t ineq_opt = pushboxProblem.evaluateInequalityConstraints(xOptimal);
-    printIneq(ineq_opt, "[INEQ @ opt]");
-    const vector_t eq_opt = pushboxProblem.evaluateEqualityConstraints(xOptimal);
-    printEq(eq_opt, "[EQ   @ opt]", static_cast<int>(N), xOptimal);
+    // // Check constraints at solution
+    // const vector_t ineq_opt = pushboxProblem.evaluateInequalityConstraints(xOptimal);
+    // printIneq(ineq_opt, "[INEQ @ opt]");
+    // const vector_t eq_opt = pushboxProblem.evaluateEqualityConstraints(xOptimal);
+    // printEq(eq_opt, "[EQ   @ opt]", static_cast<int>(N), xOptimal);
 
     std::ofstream log(PROJECT_ROOT / "examples/pushbox/results/results_pushbox_sdf_roundedsmooth.csv");
     for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
