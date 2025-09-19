@@ -109,7 +109,7 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
         return 0.5 * (u + v + sqrt(d * d + eps));
     };
 
-    y.resize((N - 1) * 16);
+    y.resize((N - 1) * 17);
     for (size_t i = 0; i < N - 1; ++i) {
         size_t idx = i * (num_state + num_control);
         ad_scalar_t px_i        = x[idx + 0];
@@ -140,14 +140,14 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t ty_top   =  cy_i - b;   // >0 if cy >  b
         ad_scalar_t ty_bot   = -cy_i - b;   // >0 if cy < -b
 
-        // // “outside or on boundary” guard (forbid interior):
-        // // ax = |cx|-a, ay = |cy|-b ; outside iff max(ax, ay) >= 0
-        // ad_scalar_t ax = sabs(cx_i) - a;
-        // ad_scalar_t ay = sabs(cy_i) - b;
-        // ad_scalar_t outside_or_on = smax2(ax, ay); // must be >= 0
+        // “outside or on boundary” guard (forbid interior):
+        // ax = |cx|-a, ay = |cy|-b ; outside iff max(ax, ay) >= 0
+        ad_scalar_t ax = sabs(cx_i) - a;
+        ad_scalar_t ay = sabs(cy_i) - b;
+        ad_scalar_t outside_or_on = smax2(ax, ay); // must be >= 0
 
         // pack (>=0 is feasible)
-        y.segment(i * 16, 16) <<
+        y.segment(i * 17, 17) <<
             f1, f2, f3, f4,
             -(f1 * psi1_n),
             -(f2 * psi2_n),
@@ -160,8 +160,8 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
             -(f3 * tx_right),  // if f3>0 ⇒ cx ≤ a
             -(f3 * tx_left),   // if f3>0 ⇒ cx ≥ -a
             -(f4 * ty_top),    // if f4>0 ⇒ cy ≤ b
-            -(f4 * ty_bot);    // if f4>0 ⇒ cy ≥ -b
-            // outside_or_on;
+            -(f4 * ty_bot),    // if f4>0 ⇒ cy ≥ -b
+            outside_or_on;
     }
 };
 
@@ -175,12 +175,12 @@ ad_function_t pushboxContactSingleForceConstraints = [](const ad_vector_t& x, ad
         ad_scalar_t lambda3_i = x[idx + 7];
         ad_scalar_t lambda4_i = x[idx + 8];
 
-        y.segment(i * 6, 6) << -(lambda1_i * lambda2_i),
-                            -(lambda1_i * (-lambda3_i)),
-                            -(lambda1_i * (-lambda4_i)),
-                            -(lambda2_i * (-lambda3_i)),
-                            -(lambda2_i * (-lambda4_i)),
-                            -(-lambda3_i * (-lambda4_i));
+        y.segment(i * 6, 6) <<  -(lambda1_i * lambda2_i),
+                                -(lambda1_i * (-lambda3_i)),
+                                -(lambda1_i * (-lambda4_i)),
+                                -(lambda2_i * (-lambda3_i)),
+                                -(lambda2_i * (-lambda4_i)),
+                                -(-lambda3_i * (-lambda4_i));
     }
 };
 
@@ -297,9 +297,9 @@ int main(){
     vector_t xOptimal(variableNum);
 
     // define a theta from 0 to 2pi, and define different final state for the problem with equal interval, for example 20 degree
-    // xInitialStates << 0.4, 0.0, 0.2;
+    xInitialStates << 0.4, 0.0, 0.0;
     // xInitialStates << 0.35766736, 0.08357876, 0.42412436;  // Suboptimal initial condition
-    xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
+    // xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
     xInitialStates_ee << 0.0, -4*b;
 
     // set zero initial guess

@@ -99,8 +99,8 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
         const ad_scalar_t wy = ux_i / denom; // weight for y-normal (y-face)
 
         // Outward normal signs in box frame
-        const ad_scalar_t nx = sgn_smooth(cx_i); // +1 on right face, -1 on left
-        const ad_scalar_t ny = sgn_smooth(cy_i); // +1 on top face,  -1 on bottom
+        const ad_scalar_t nx = -sgn_smooth(cx_i); // +1 on right face, -1 on left
+        const ad_scalar_t ny = -sgn_smooth(cy_i); // +1 on top face,  -1 on bottom
 
         // Body-frame contact force from single λ
         const ad_scalar_t fx_b = lambda_i * wx * nx;
@@ -153,6 +153,7 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
             lambda_i,
             (lambda_i * sx),
             (lambda_i * sy);
+            // -(lambda_i * sx * sy); // λ * sx * sy ≤ 0 : force only on the surface
     }
 };
 
@@ -238,7 +239,7 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
 
 int main(){
     size_t variableNum = N * (num_state + num_control);
-    std::string problemName = "Pushbox";
+    std::string problemName = "PushboxSingle";
     std::string folderName = "model";
     OptimizationProblem pushboxProblem(variableNum, problemName);
 
@@ -279,10 +280,10 @@ int main(){
     // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));
     // solver.setHyperParameters("etaHigh", vector_t::Constant(1, 0.75));
     // solver.setHyperParameters("mu", vector_t::Constant(1, 10.0));
-    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e8));
+    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e10));
     solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-5));
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
-    solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-6));
+    solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-7));
     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
     solver.setHyperParameters("WeightedTolFactor", vector_t::Constant(1, 10.0));
     // solver.setHyperParameters("secondOrderCorrection", vector_t::Constant(1, 1));
@@ -293,7 +294,7 @@ int main(){
     xFinalStates << 0.4, 0.3, 0.0;
     std::cout << "Initial State: " << xInitialStates.transpose() << std::endl;
     std::cout << "Final State: " << xFinalStates.transpose() << std::endl;
-    xInitialGuess = makeRandomFirstGuess(N, num_state, num_control, /*seed=*/100);
+    // xInitialGuess = makeRandomFirstGuess(N, num_state, num_control, /*seed=*/100);
 
     solver.setProblemParameters("pushboxObjective", xFinalStates);
     solver.initialize(xInitialGuess);

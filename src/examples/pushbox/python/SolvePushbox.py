@@ -77,7 +77,7 @@ print(f"[pyCRISP] Problem {problemName} created with {variableNum} variables and
 solver.set_problem_parameters("pushboxObjective", xf)               
 solver.set_problem_parameters("pushboxInitialConstraints", x0)
 print(f"[pyCRISP] Problem parameters set with initial states {x0} and final states {xf}.")
-# solver.set_hyper_parameters("maxIterations", np.array([1000]))              # maximum number of iterations for the outer loop
+solver.set_hyper_parameters("maxIterations", np.array([1000]))              # maximum number of iterations for the outer loop
 # solver.set_hyper_parameters("trustRegionInitRadius", np.array([1.0]))       # initial trust region radius
 # solver.set_hyper_parameters("trustRegionMaxRadius", np.array([10.0]))       # maximum trust region radius
 # solver.set_hyper_parameters("mu", np.array([1e1]))                          # penalty parameter

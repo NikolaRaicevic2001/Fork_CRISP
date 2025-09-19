@@ -1,7 +1,7 @@
 {
-  "total_contact_path_m": 3.72982811568815e-11,
-  "total_contact_path_active_m": 0.0,
-  "avg_contact_speed_active_mps": NaN,
+  "total_contact_path_m": 1.9249147693820376,
+  "total_contact_path_active_m": 1.0416940158391552,
+  "avg_contact_speed_active_mps": 0.1352849371219682,
   "dt": 0.1,
   "N": 100,
   "example_name": "pushbox",

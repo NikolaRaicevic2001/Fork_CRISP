@@ -14,7 +14,7 @@ dt = 0.1                       # time step (100 ms)
 N  = 100                       # number of time steps
 num_state   = 3                # STATE  (3) : [px, py, θ]
 CONTACT_EPS = 1e-6
-example_name = "pushbox_single"    
+example_name = "pushbox"    
 
 if example_name == "pushbox":
     method = "actual"
