@@ -8,8 +8,8 @@
 using namespace CRISP;
 
 // Define model parameters for pushbox
-const scalar_t a = 0.1;
-const scalar_t b = 0.1;
+const scalar_t a = 0.05;
+const scalar_t b = 0.05;
 const scalar_t m = 1.0;
 const scalar_t mu = 0.5;
 const scalar_t g = 9.8;
@@ -297,8 +297,8 @@ int main(){
     vector_t xOptimal(variableNum);
 
     // define a theta from 0 to 2pi, and define different final state for the problem with equal interval, for example 20 degree
-    xInitialStates << 0.4, 0.0, 0.0;
-    // xInitialStates << 0.35766736, 0.08357876, 0.42412436;  // Suboptimal initial condition
+    // xInitialStates << 0.4, 0.0, 0.0;
+    xInitialStates << 0.35766736, 0.08357876, 0.42412436;  // Suboptimal initial condition
     // xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
     xInitialStates_ee << 0.0, -4*b;
 

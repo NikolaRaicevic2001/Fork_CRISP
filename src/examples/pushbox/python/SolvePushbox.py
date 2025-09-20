@@ -12,6 +12,8 @@ project_root = Path(__file__).resolve().parent.parent.parent.parent.parent      
 import pyCRISP
 
 # Set the hyperparameters
+a = 0.05                       # half width of the box
+b = 0.05                       # half height of the box
 num_state = 3
 num_control = 6
 N = 100
@@ -21,6 +23,7 @@ variableNum = N * (num_state + num_control)
 x_initial_guess = np.zeros(variableNum, dtype=np.float64)  
 x0 = np.array([0.4, 0.0, 0.0], dtype=np.float64)   # Initial state [px, py, θ]
 xf = np.array([0.4, 0.3, 0.0], dtype=np.float64)   # Final state [px, py, θ]
+xee = np.array([0.0, -4*b], dtype=np.float64)   # End effector state [cx, cy]
 
 # Create the shared-memory block
 shm_name = "CRISP_publisher"
@@ -55,6 +58,17 @@ crispInitialState_shm = shared_memory.SharedMemory(name=shm_name, create=True, s
 crispInitialState_share = np.ndarray((num_state,), dtype=np.float64, buffer=crispInitialState_shm.buf)
 crispInitialState_share[:] = x0
 
+shm_name = "CRISP_initial_state_ee"
+try:
+    existing = shared_memory.SharedMemory(name=shm_name)
+    existing.close()
+    existing.unlink()
+except FileNotFoundError:
+    pass
+crispInitialStateEE_shm = shared_memory.SharedMemory(name=shm_name, create=True, size=2 * np.dtype(np.float64).itemsize)
+crispInitialStateEE_share = np.ndarray((2,), dtype=np.float64, buffer=crispInitialStateEE_shm.buf)
+crispInitialStateEE_share[:] = xee
+
 # Create optimization problem
 problemName = "Pushbox"
 folderName = "model"
@@ -63,10 +77,12 @@ obj     = pyCRISP.ObjectiveFunction(variableNum, num_state, problemName, folderN
 dynamic = pyCRISP.ConstraintFunction(variableNum, problemName, folderName, "pushboxDynamicConstraints")
 contact = pyCRISP.ConstraintFunction(variableNum, problemName, folderName, "pushboxContactConstraints")
 initial = pyCRISP.ConstraintFunction(variableNum, num_state, problemName, folderName, "pushboxInitialConstraints")
+initial_ee = pyCRISP.ConstraintFunction(variableNum, 2, problemName, folderName, "pushboxInitialConstraintsEndEffector")
 problem.add_objective(obj)
 problem.add_equality_constraint(dynamic)
 problem.add_inequality_constraint(contact)
 problem.add_equality_constraint(initial)
+problem.add_equality_constraint(initial_ee)
 
 # Initialize the solver
 params = pyCRISP.SolverParameters()
@@ -76,7 +92,8 @@ print(f"[pyCRISP] Problem {problemName} created with {variableNum} variables and
 # Set the parameters for those parametric functions
 solver.set_problem_parameters("pushboxObjective", xf)               
 solver.set_problem_parameters("pushboxInitialConstraints", x0)
-print(f"[pyCRISP] Problem parameters set with initial states {x0} and final states {xf}.")
+solver.set_problem_parameters("pushboxInitialConstraintsEndEffector", xee)
+print(f"[pyCRISP] Problem parameters set with initial states {x0} and final states {xf} and end-effector states {xee}.")
 solver.set_hyper_parameters("maxIterations", np.array([1000]))              # maximum number of iterations for the outer loop
 # solver.set_hyper_parameters("trustRegionInitRadius", np.array([1.0]))       # initial trust region radius
 # solver.set_hyper_parameters("trustRegionMaxRadius", np.array([10.0]))       # maximum trust region radius
@@ -101,19 +118,20 @@ print(f"[pyCRISP] Solution obtained: {solution.shape} , type of the solution {so
 
 try:
     while True:
-        # initial_state_ee = 
         initial_state = crispInitialState_share
+        initial_state_ee = crispInitialStateEE_share
         final_state = crispFinalState_share
         x_initial_guess = solution
         solver.set_problem_parameters("pushboxObjective", final_state)
         solver.set_problem_parameters("pushboxInitialConstraints", initial_state)
+        # solver.set_problem_parameters("pushboxInitialConstraintsEndEffector", initial_state_ee)
         solver.reset_problem(x_initial_guess)
         solver.solve()
         solution = solver.get_solution()
 
         crispSol_share[:] = solution
         print(f"[Solver] published new trajectory @ {time.strftime('%H:%M:%S')}")
-        print(f"[pyCRISP] Initial state: {initial_state}, Final state: {final_state}")
+        print(f"[pyCRISP] Initial state: {initial_state}, Initial End Effector state: {initial_state_ee}, Final state: {final_state}")
 except KeyboardInterrupt:
     print("[Solver] interrupted by user, cleaning up…")
 finally:

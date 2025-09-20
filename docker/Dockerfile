@@ -49,8 +49,6 @@ RUN mkdir -p src/third_party/piqp/build && \
     cmake --build . --config Release -j$(nproc) && \
     cmake --install . --config Release
 
-
-
 # # Missing Qt dependencies for Pushbox visualization
 # apt install sudo
 # sudo apt-get update
