@@ -124,7 +124,7 @@ try:
         x_initial_guess = solution
         solver.set_problem_parameters("pushboxObjective", final_state)
         solver.set_problem_parameters("pushboxInitialConstraints", initial_state)
-        # solver.set_problem_parameters("pushboxInitialConstraintsEndEffector", initial_state_ee)
+        solver.set_problem_parameters("pushboxInitialConstraintsEndEffector", initial_state_ee)
         solver.reset_problem(x_initial_guess)
         solver.solve()
         solution = solver.get_solution()
