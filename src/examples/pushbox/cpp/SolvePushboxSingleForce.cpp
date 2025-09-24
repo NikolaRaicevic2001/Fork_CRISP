@@ -33,7 +33,7 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
         return z / CppAD::sqrt(z * z + eps);
     };
 
-    y.resize((N - 1) * num_state);
+    y.resize((N-1) * num_state);
 
     for (size_t i = 0; i < N - 1; ++i) {
         // Extract state and control for current and next time steps
@@ -58,7 +58,7 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
 
         // Outward normal signs in box frame
         const ad_scalar_t nx = -sgn_smooth(cx_i); // +1 on right face, -1 on left
-        const ad_scalar_t ny = -sgn_smooth(cy_i); // +1 on top face,  -1 on bottom
+        const ad_scalar_t ny = -sgn_smooth(cy_i); // +1 on top face,   -1 on bottom
 
         // Body-frame contact force from single λ
         const ad_scalar_t fx_b = lambda_i * wx * nx;
@@ -110,7 +110,6 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
             lambda_i,
             (lambda_i * sx),
             (lambda_i * sy);
-            // -(lambda_i * sx * sy); // λ * sx * sy ≤ 0 : force only on the surface
     }
 };
 
@@ -196,7 +195,7 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
 
 int main(){
     size_t variableNum = N * (num_state + num_control);
-    std::string problemName = "PushboxSingle";
+    std::string problemName = "PushboxSingleForce";
     std::string folderName = "model";
     OptimizationProblem pushboxProblem(variableNum, problemName);
 
@@ -220,14 +219,17 @@ int main(){
     // vector_t xInitialStates_ee(2);
     vector_t xOptimal(variableNum);
 
-    // define a theta from 0 to 2pi, and define different final state for the problem with equal interval, for example 20 degree
-    xInitialStates << 0.4, 0.0, 0.0;
+    // xInitialStates << 0.4, 0.0, 0.0;
     // xInitialStates << 0.35766736, 0.08357876, 0.42412436;  // Suboptimal initial condition
-    // xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
+    xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
     // xInitialStates_ee << 0.0, -4*b;
-
-    // set zero initial guess
     xInitialGuess.setZero();
+    // xInitialGuess = makeRandomFirstGuess(N, num_state, num_control, a, b, /*seed=*/100);
+    xFinalStates << 0.4, 0.3, 0.0;
+    std::cout << "Initial State: " << xInitialStates.transpose() << std::endl;
+    std::cout << "Final State: " << xFinalStates.transpose() << std::endl;
+
+    // solver parameters
     SolverParameters params;
     SolverInterface solver(pushboxProblem, params);
     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
@@ -244,14 +246,6 @@ int main(){
     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
     solver.setHyperParameters("WeightedTolFactor", vector_t::Constant(1, 10.0));
     // solver.setHyperParameters("secondOrderCorrection", vector_t::Constant(1, 1));
-
-    size_t num_segments = 18;
-    scalar_t theta = 12 * 2 * M_PI / num_segments;
-    xFinalStates << 2*cos(theta), 2*sin(theta), theta;
-    xFinalStates << 0.4, 0.3, 0.0;
-    std::cout << "Initial State: " << xInitialStates.transpose() << std::endl;
-    std::cout << "Final State: " << xFinalStates.transpose() << std::endl;
-    // xInitialGuess = makeRandomFirstGuess(N, num_state, num_control, a, b, /*seed=*/100);
 
     solver.setProblemParameters("pushboxObjective", xFinalStates);
     solver.initialize(xInitialGuess);

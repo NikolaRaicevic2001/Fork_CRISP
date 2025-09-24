@@ -8,7 +8,7 @@ add_executable(pushbox_example pushbox/cpp/SolvePushbox.cpp)
 target_link_libraries(pushbox_example
   CRISP
 )
-add_executable(pushboxsingleforce_example pushbox/cpp/SolvePushboxSingle.cpp)
+add_executable(pushboxsingleforce_example pushbox/cpp/SolvePushboxSingleForce.cpp)
 target_link_libraries(pushboxsingleforce_example
   CRISP
 )
