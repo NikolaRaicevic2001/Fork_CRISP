@@ -33,6 +33,7 @@ vector_t makeRandomFirstGuess(const size_t N, const size_t num_state, const size
 
     // Initial Guess Vector
     vector_t x(N*(num_state + num_control));
+
     x.setZero();
 
     // Random vector of size num_state+num_control
@@ -296,14 +297,18 @@ int main(){
     vector_t xInitialStates_ee(2);
     vector_t xOptimal(variableNum);
 
-    // define a theta from 0 to 2pi, and define different final state for the problem with equal interval, for example 20 degree
     // xInitialStates << 0.4, 0.0, 0.0;
     xInitialStates << 0.35766736, 0.08357876, 0.42412436;  // Suboptimal initial condition
     // xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
     xInitialStates_ee << 0.0, -4*b;
+    xFinalStates << 0.4, 0.3, 0.0;
+    // xInitialGuess.setZero();
+    xInitialGuess = makeRandomFirstGuess(N, num_state, num_control, /*seed=*/100);
+    std::cout << "Initial State: " << xInitialStates.transpose() << std::endl;
+    std::cout << "Initial State End Effector: " << xInitialStates_ee.transpose() << std::endl;
+    std::cout << "Final State: " << xFinalStates.transpose() << std::endl;
 
-    // set zero initial guess
-    xInitialGuess.setZero();
+    // solver parameters
     SolverParameters params;
     SolverInterface solver(pushboxProblem, params);
     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
@@ -320,14 +325,6 @@ int main(){
     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
     solver.setHyperParameters("WeightedTolFactor", vector_t::Constant(1, 10.0));
     // solver.setHyperParameters("secondOrderCorrection", vector_t::Constant(1, 1));
-
-    size_t num_segments = 18;
-    scalar_t theta = 12 * 2 * M_PI / num_segments;
-    xFinalStates << 2*cos(theta), 2*sin(theta), theta;
-    xFinalStates << 0.4, 0.3, 0.0;
-    std::cout << "Initial State: " << xInitialStates.transpose() << std::endl;
-    std::cout << "Final State: " << xFinalStates.transpose() << std::endl;
-    xInitialGuess = makeRandomFirstGuess(N, num_state, num_control, /*seed=*/100);
 
     solver.setProblemParameters("pushboxObjective", xFinalStates);
     solver.initialize(xInitialGuess);
@@ -352,7 +349,7 @@ int main(){
         std::cout << "Constraint " << i << ": " << eq_values[i] << std::endl;
     }
 
-    std::ofstream log(PROJECT_ROOT / "examples/pushbox/results/results_pushbox_actual.csv");
+    std::ofstream log(PROJECT_ROOT / "examples/pushbox/results/results_pushbox_analytical.csv");
     for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
     log.close();                              
 

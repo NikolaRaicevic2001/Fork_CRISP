@@ -14,21 +14,18 @@ dt = 0.1                       # time step (100 ms)
 N  = 100                       # number of time steps
 num_state   = 3                # STATE  (3) : [px, py, θ]
 CONTACT_EPS = 1e-6
-example_name = "pushbox"    
+example = "pushbox"
+method = "analytical"          # "analytical", "single", "sdf"
 
-if example_name == "pushbox":
-    method = "actual"
+if method == "analytical":
     num_control = 6             # CONTROL (6) : [cx, cy, λ1-λ4]  (cx, cy plotted)
-    csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}_{method}.csv" 
-elif example_name == "pushbox_single":
-    example_name = "pushbox"
-    method = "single"
+    csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example}_{method}.csv" 
+elif method == "single_force":
     num_control = 5             
-    csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}_{method}.csv"
-elif example_name == "pushbox_sdf":
-    method = "roundedsmooth"
+    csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example}_{method}.csv"
+elif method == "sdf_roundedsmooth":
     num_control = 3             # CONTROL (3) : [cx, cy, λ]  (cx, cy plotted)
-    csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example_name}_{method}.csv" 
+    csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example}_{method}.csv" 
 
 # Goal configuration (in world frame)
 num_segments    = 18            # number of segments for the goal circle
@@ -36,7 +33,6 @@ theta_seg       = 12 * 2 * np.pi / num_segments
 goal_state      = np.array([2 * np.cos(theta_seg), 2 * np.sin(theta_seg), theta_seg])  
 goal_state      = np.array([0.4, 0.3, 0.0])
 # goal_state      = np.array([-1, -1.73205, 4.18879])
-
 
 # ---------------- load data from CSV --------------------
 flat   = np.loadtxt(csv_file, dtype=float)          # 900 × 1
@@ -78,11 +74,11 @@ metrics = {
     "avg_contact_speed_active_mps": avg_contact_speed_active_mps,
     "dt": float(dt),
     "N": int(N),
-    "example_name": example_name,
+    "example": example,
     "method": method,
 }
 Path("results").mkdir(exist_ok=True, parents=True)
-with open(f"results/metrics_{example_name}_{method}.json", "w") as f:
+with open(f"results/metrics_{example}_{method}.json", "w") as f:
     json.dump(metrics, f, indent=2)
 
 # ---------- STATIC PLOTS ----------
@@ -106,7 +102,7 @@ ax[2].set_ylabel("contact forces")
 ax[2].legend()
 
 fig.tight_layout()
-fig.savefig(f"results/figures_{example_name}_{method}.png", dpi=100, bbox_inches='tight')
+fig.savefig(f"results/figures_{example}_{method}.png", dpi=100, bbox_inches='tight')
 
 # ---------- SIMPLE CARTOON ANIMATION ----------
 fig2, ax2 = plt.subplots(figsize=(7, 5))
@@ -151,6 +147,6 @@ def frame(k):
     return box, center, contact_path, contact_points, goal
 
 ani = FuncAnimation(fig2, frame, frames=N, interval=dt*1000, blit=True)
-ani.save(f"results/animation_{example_name}_{method}.gif", writer='pillow', fps=1/dt, dpi=100)
+ani.save(f"results/animation_{example}_{method}.gif", writer='pillow', fps=1/dt, dpi=100)
 
 plt.show()

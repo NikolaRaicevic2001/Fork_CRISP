@@ -4,6 +4,6 @@
   "avg_contact_speed_active_mps": 0.07326267280022215,
   "dt": 0.1,
   "N": 100,
-  "example_name": "pushbox",
-  "method": "actual"
+  "example": "pushbox",
+  "method": "analytical"
 }
