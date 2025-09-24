@@ -106,7 +106,7 @@ solver.set_hyper_parameters("trustRegionTol", np.array([1e-5]))             # to
 solver.set_hyper_parameters("constraintTol", np.array([1e-6]))              # tolerance for the maximum constraints violation
 # solver.set_hyper_parameters("verbose", np.array([0]))                       # verbose level
 solver.set_hyper_parameters("WeightedMode", np.array([1]))                  # 0: no weighted, 1: weighted
-# solver.set_hyper_parameters("WeightedTolFactor", np.array([10.0]))          # factor for the weighted mode
+solver.set_hyper_parameters("WeightedTolFactor", np.array([10.0]))          # factor for the weighted mode
 # solver.set_hyper_parameters("secondOrderCorrection", np.array([1]))         # 0: no second order correction, 1: second order correction
 
 solver.initialize(x_initial_guess)
