@@ -219,10 +219,10 @@ int main(){
     vector_t xInitialStates_ee(2);
     vector_t xOptimal(variableNum);
 
-    xInitialStates << 0.4, 0.0, 0.0;
-    // xInitialStates << 0.35766736, 0.08357876, 0.42412436;  // Suboptimal initial condition
+    // xInitialStates << 0.4, 0.0, 0.0;
+    xInitialStates << 0.35766736, 0.08357876, 0.42412436;  // Suboptimal initial condition
     // xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
-    // xInitialStates_ee << 0.0, -4*b;
+    xInitialStates_ee << 0.0, -4*b;
     xInitialGuess.setZero();
     // xInitialGuess = makeRandomFirstGuess(N, num_state, num_control, a, b, /*seed=*/100);
     xFinalStates << 0.4, 0.3, 0.0;

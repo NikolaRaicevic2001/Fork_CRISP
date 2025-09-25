@@ -274,10 +274,10 @@ int main(){
     // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));
     // solver.setHyperParameters("etaHigh", vector_t::Constant(1, 0.75));
     // solver.setHyperParameters("mu", vector_t::Constant(1, 10.0));
-    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e8));
+    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e10));
     solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-5));
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
-    solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-6));
+    solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-7));
     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
     solver.setHyperParameters("WeightedTolFactor", vector_t::Constant(1, 10.0));
     // solver.setHyperParameters("secondOrderCorrection", vector_t::Constant(1, 1));
