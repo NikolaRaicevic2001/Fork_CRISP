@@ -97,8 +97,8 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t uy_i        = x[idx + 7];
 
         // signed "inside-ness" per coord: >0 inside, =0 on face, <0 strictly outside
-        const ad_scalar_t sx = 1.0 - (cx_i / a) * (cx_i / a);
-        const ad_scalar_t sy = 1.0 - (cy_i / b) * (cy_i / b);
+        const ad_scalar_t sx = 1.0 - (cx_i / a)*(cx_i / a);
+        const ad_scalar_t sy = 1.0 - (cy_i / b)*(cy_i / b);
 
         // pack (>=0 is feasible)
         y.segment(i * 8, 8) <<
@@ -119,10 +119,10 @@ ad_function_with_param_t pushboxInitialConstraints = [](const ad_vector_t& x, co
     y.segment(0, 3) << x[0] - p[0], x[1] - p[1], x[2] - p[2];
 };
 
-// ad_function_with_param_t pushboxInitialConstraintsEndEffector = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
-//     y.resize(2);
-//     y.segment(0, 2) << x[3] - p[0], x[4] - p[1];
-// };
+ad_function_with_param_t pushboxInitialConstraintsEndEffector = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
+    y.resize(2);
+    y.segment(0, 2) << x[3] - p[0], x[4] - p[1];
+};
 
 // cost function for pushbox
 ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
@@ -202,26 +202,26 @@ int main(){
     auto dynamics = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxDynamicConstraints", pushboxDynamicConstraints);
     auto contact = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxContactConstraints", pushboxContactConstraints);
     auto initial = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "pushboxInitialConstraints", pushboxInitialConstraints);
-    // auto initial_ee = std::make_shared<ConstraintFunction>(variableNum, 2, problemName, folderName, "pushboxInitialConstraintsEndEffector", pushboxInitialConstraintsEndEffector);
+    auto initial_ee = std::make_shared<ConstraintFunction>(variableNum, 2, problemName, folderName, "pushboxInitialConstraintsEndEffector", pushboxInitialConstraintsEndEffector);
     auto obj = std::make_shared<ObjectiveFunction>(variableNum, num_state, problemName, folderName, "pushboxObjective", pushboxObjective);
     // ---------------------- ! the above four lines are enough for generate the auto-differentiation functions library for this problem and the usage in python ! ---------------------- //
 
     pushboxProblem.addEqualityConstraint(dynamics);
     pushboxProblem.addInequalityConstraint(contact);
     pushboxProblem.addEqualityConstraint(initial);
-    // pushboxProblem.addEqualityConstraint(initial_ee);
+    pushboxProblem.addEqualityConstraint(initial_ee);
     pushboxProblem.addObjective(obj);
 
     // problem parameters
     vector_t xInitialStates(num_state);
     vector_t xFinalStates(num_state);
     vector_t xInitialGuess(variableNum);
-    // vector_t xInitialStates_ee(2);
+    vector_t xInitialStates_ee(2);
     vector_t xOptimal(variableNum);
 
-    // xInitialStates << 0.4, 0.0, 0.0;
+    xInitialStates << 0.4, 0.0, 0.0;
     // xInitialStates << 0.35766736, 0.08357876, 0.42412436;  // Suboptimal initial condition
-    xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
+    // xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
     // xInitialStates_ee << 0.0, -4*b;
     xInitialGuess.setZero();
     // xInitialGuess = makeRandomFirstGuess(N, num_state, num_control, a, b, /*seed=*/100);
@@ -233,7 +233,7 @@ int main(){
     SolverParameters params;
     SolverInterface solver(pushboxProblem, params);
     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
-    // solver.setProblemParameters("pushboxInitialConstraintsEndEffector", xInitialStates_ee);
+    solver.setProblemParameters("pushboxInitialConstraintsEndEffector", xInitialStates_ee);
     // solver.setHyperParameters("trustRegionInitRadius", vector_t::Constant(1, 1.0));
     // solver.setHyperParameters("trustRegionMaxRadius", vector_t::Constant(1, 10.0));
     // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));

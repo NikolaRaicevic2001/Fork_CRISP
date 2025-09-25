@@ -15,16 +15,16 @@ N  = 100                       # number of time steps
 num_state   = 3                # STATE (3) : [px, py, θ]
 CONTACT_EPS = 1e-6
 example = "pushbox"
-method = "single_force"        # "analytical", "single", "sdf"
+method = "single_force"    # "analytical", "single", "sdf"
 
 if method == "analytical":
-    num_control = 6             # CONTROL (6) : [cx, cy, λ1-λ4]  (cx, cy plotted)
+    num_control = 6             # CONTROL (6) : [cx, cy, λ1-λ4]  
     csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example}_{method}.csv" 
 elif method == "single_force":
-    num_control = 5             
+    num_control = 5             # CONTROL (5) : [cx, cy, λ, ux, uy]
     csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example}_{method}.csv"
 elif method == "sdf_roundedsmooth":
-    num_control = 3             # CONTROL (3) : [cx, cy, λ]  (cx, cy plotted)
+    num_control = 3             # CONTROL (3) : [cx, cy, λ]  
     csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example}_{method}.csv" 
 
 # Goal configuration (in world frame)
