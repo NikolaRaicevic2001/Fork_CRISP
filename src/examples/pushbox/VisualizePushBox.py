@@ -15,7 +15,7 @@ N  = 100                       # number of time steps
 num_state   = 3                # STATE (3) : [px, py, θ]
 CONTACT_EPS = 1e-6
 example = "pushbox"
-method = "analytical"    # "analytical", "single", "sdf"
+method = "single_force"    # "analytical", "single", "sdf"
 
 if method == "analytical":
     num_control = 6             # CONTROL (6) : [cx, cy, λ1-λ4]  
