@@ -4,6 +4,10 @@ target_link_libraries(pushbot_example
   CRISP
 )
 
+add_executable(pushboxoriginal_example pushbox/cpp/SolvePushboxOriginal.cpp)
+target_link_libraries(pushboxoriginal_example
+  CRISP
+)
 add_executable(pushbox_example pushbox/cpp/SolvePushbox.cpp)
 target_link_libraries(pushbox_example
   CRISP

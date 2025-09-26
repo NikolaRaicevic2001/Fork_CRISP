@@ -1,3 +1,5 @@
+#pragma once
+
 #include "solver_core/SolverInterface.h"
 
 #include <filesystem>

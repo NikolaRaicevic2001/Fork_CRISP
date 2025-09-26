@@ -15,8 +15,11 @@ N  = 100                       # number of time steps
 num_state   = 3                # STATE (3) : [px, py, θ]
 CONTACT_EPS = 1e-6
 example = "pushbox"
-method = "sdf_roundedsmooth"    # "analytical", "single", "sdf"
+method = "original"    # "analytical", "single", "sdf"
 
+if method == "original":
+    num_control = 6             # CONTROL (6) : [cx, cy, λ1-λ4]  
+    csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example}_{method}.csv" 
 if method == "analytical":
     num_control = 6             # CONTROL (6) : [cx, cy, λ1-λ4]  
     csv_file   = Path(__file__).resolve().parent / "results" / f"results_{example}_{method}.csv" 
@@ -30,7 +33,7 @@ elif method == "sdf_roundedsmooth":
 # Goal configuration (in world frame)
 num_segments    = 18            # number of segments for the goal circle
 theta_seg       = 12 * 2 * np.pi / num_segments  
-goal_state      = np.array([2 * np.cos(theta_seg), 2 * np.sin(theta_seg), theta_seg])  
+# goal_state      = np.array([3 * np.cos(theta_seg), 3 * np.sin(theta_seg), theta_seg])  
 goal_state      = np.array([0.4, 0.3, 0.0])
 # goal_state      = np.array([-1, -1.73205, 4.18879])
 
