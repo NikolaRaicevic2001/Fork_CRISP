@@ -164,10 +164,10 @@ ad_function_with_param_t pushboxInitialConstraints = [](const ad_vector_t& x, co
     y.segment(0, 3) << x[0] - p[0], x[1] - p[1], x[2] - p[2];
 };
 
-ad_function_with_param_t pushboxInitialConstraintsEndEffector = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
-    y.resize(2);
-    y.segment(0, 2) << x[3] - p[0], x[4] - p[1];
-};
+// ad_function_with_param_t pushboxInitialConstraintsEndEffector = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
+//     y.resize(2);
+//     y.segment(0, 2) << x[3] - p[0], x[4] - p[1];
+// };
 
 // cost function for pushbox
 ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
@@ -247,14 +247,14 @@ int main(){
     auto dynamics = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxDynamicConstraints", pushboxDynamicConstraints);
     auto contact = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxContactConstraints", pushboxContactConstraints);
     auto initial = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "pushboxInitialConstraints", pushboxInitialConstraints);
-    auto initial_ee = std::make_shared<ConstraintFunction>(variableNum, 2, problemName, folderName, "pushboxInitialConstraintsEndEffector", pushboxInitialConstraintsEndEffector);
+    // auto initial_ee = std::make_shared<ConstraintFunction>(variableNum, 2, problemName, folderName, "pushboxInitialConstraintsEndEffector", pushboxInitialConstraintsEndEffector);
     auto obj = std::make_shared<ObjectiveFunction>(variableNum, num_state, problemName, folderName, "pushboxObjective", pushboxObjective);
     // ---------------------- ! the above four lines are enough for generate the auto-differentiation functions library for this problem and the usage in python ! ---------------------- //
 
     pushboxProblem.addEqualityConstraint(dynamics);
     pushboxProblem.addInequalityConstraint(contact);
     pushboxProblem.addEqualityConstraint(initial);
-    pushboxProblem.addEqualityConstraint(initial_ee);
+    // pushboxProblem.addEqualityConstraint(initial_ee);
     pushboxProblem.addObjective(obj);
 
     // problem parameters
@@ -278,7 +278,7 @@ int main(){
     SolverParameters params;
     SolverInterface solver(pushboxProblem, params);
     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
-    solver.setProblemParameters("pushboxInitialConstraintsEndEffector", xInitialStates_ee);
+    // solver.setProblemParameters("pushboxInitialConstraintsEndEffector", xInitialStates_ee);
     // solver.setHyperParameters("trustRegionInitRadius", vector_t::Constant(1, 1.0));
     // solver.setHyperParameters("trustRegionMaxRadius", vector_t::Constant(1, 10.0));
     // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));

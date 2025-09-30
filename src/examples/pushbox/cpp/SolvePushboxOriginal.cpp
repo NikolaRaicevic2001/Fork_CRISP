@@ -7,23 +7,23 @@
 
 using namespace CRISP;
 
-// Define model model parameters for pushbox
-const scalar_t a = 0.05;
-const scalar_t b = 0.05;
-const scalar_t m = 1;
-const scalar_t mu = 0.5;
-const scalar_t g = 9.8;
-const scalar_t r = sqrt(a * a + b * b);
-const scalar_t c = 0.4;
-const scalar_t dt = 0.02;
-const size_t N = 100;                   // number of time steps
+// Define model parameters for pushbox
+const scalar_t a    = 0.05;
+const scalar_t b    = 0.05;
+const scalar_t m    = 1;
+const scalar_t mu   = 0.5;
+const scalar_t g    = 9.8;
+const scalar_t r    = sqrt(a * a + b * b);
+const scalar_t c    = 0.4;
+const scalar_t dt   = 0.02;
+const size_t N      = 100;                   // number of time steps
 const size_t num_state = 3;
 const size_t num_control = 6;
 
 // Global variables for the problem
 static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();    
 
-// define the dynamics constraints
+// Define the dynamics constraints
 ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
     y.resize((N - 1) * num_state);
     for (size_t i = 0; i < N - 1; ++i) {
@@ -54,8 +54,7 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
     }
 };
 
-// contact implicit constraints for pushbox
-
+// Contact implicit constraints for pushbox
 ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
     y.resize((N - 1) * 12);
     for (size_t i = 0; i < N - 1; ++i) {
@@ -85,7 +84,7 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
     }
 };
 
-// allow only one contact force at a time
+// Allow only one contact force at a time
 ad_function_t pushboxContactSingleForceConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
     y.resize((N - 1) * 6);
     for (size_t i = 0; i < N - 1; ++i) {
@@ -104,15 +103,13 @@ ad_function_t pushboxContactSingleForceConstraints = [](const ad_vector_t& x, ad
     }
 };
 
-// initial constraints
+// Initial constraints
 ad_function_with_param_t pushboxInitialConstraints = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
     y.resize(3);
-    y.segment(0, 3) << x[0] - p[0],
-                    x[1] - p[1],
-                    x[2] - p[2];
+    y.segment(0, 3) << x[0] - p[0], x[1] - p[1], x[2] - p[2];
 };
 
-// cost function for pushbox
+// Cost function for pushbox
 ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
     y.resize(1);
     y[0] = 0.0;
@@ -174,7 +171,6 @@ int main(){
     auto contact = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxContactConstraints", pushboxContactConstraints);
     auto initial = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "pushboxInitialConstraints", pushboxInitialConstraints);
     auto contactSingleForce = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushboxContactSingleForceConstraints", pushboxContactSingleForceConstraints);
-
     // ---------------------- ! the above four lines are enough for generate the auto-differentiation functions library for this problem and the usage in python ! ---------------------- //
 
     pushboxProblem.addObjective(obj);
@@ -189,9 +185,9 @@ int main(){
     vector_t xInitialGuess(variableNum);
     vector_t xOptimal(variableNum);
 
-    xInitialStates << 0.4, 0.0, 0.0;
-    // xInitialStates << 0.35766736, 0.08357876, 0.42412436;  // Suboptimal initial condition
-    // xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
+    // xInitialStates << 0.4, 0.0, 0.0;
+    xInitialStates << 0.35766736, 0.08357876, 0.42412436;    // Suboptimal initial condition
+    // xInitialStates << 0.35766736, 0.08357876, 1.42412436;       // Suboptimal initial condition
     xFinalStates << 0.4, 0.3, 0.0;
     xInitialGuess.setZero();
     std::cout << "Initial State: " << xInitialStates.transpose() << std::endl;
@@ -201,23 +197,23 @@ int main(){
     SolverParameters params;
     SolverInterface solver(pushboxProblem, params);
     solver.setProblemParameters("pushboxInitialConstraints", xInitialStates);
-    // // solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
-    // solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-3));
-    // solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-3));
-    // solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
-
-    // solver.setHyperParameters("trustRegionInitRadius", vector_t::Constant(1, 1.0));
-    // solver.setHyperParameters("trustRegionMaxRadius", vector_t::Constant(1, 10.0));
-    // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));
-    // solver.setHyperParameters("etaHigh", vector_t::Constant(1, 0.75));
-    // solver.setHyperParameters("mu", vector_t::Constant(1, 10.0));
-    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e10));
-    solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-5));
-    solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
-    solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-7));
+        // solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
+    solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-3));
+    solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-3));
     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
-    solver.setHyperParameters("WeightedTolFactor", vector_t::Constant(1, 10.0));
-    // solver.setHyperParameters("secondOrderCorrection", vector_t::Constant(1, 1));
+
+    // // solver.setHyperParameters("trustRegionInitRadius", vector_t::Constant(1, 1.0));
+    // // solver.setHyperParameters("trustRegionMaxRadius", vector_t::Constant(1, 10.0));
+    // // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));
+    // // solver.setHyperParameters("etaHigh", vector_t::Constant(1, 0.75));
+    // // solver.setHyperParameters("mu", vector_t::Constant(1, 10.0));
+    // solver.setHyperParameters("muMax", vector_t::Constant(1, 1e10));
+    // solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-5));
+    // solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
+    // solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-7));
+    // solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
+    // solver.setHyperParameters("WeightedTolFactor", vector_t::Constant(1, 10.0));
+    // // solver.setHyperParameters("secondOrderCorrection", vector_t::Constant(1, 1));
 
     solver.setProblemParameters("pushboxObjective", xFinalStates);
     solver.initialize(xInitialGuess);
