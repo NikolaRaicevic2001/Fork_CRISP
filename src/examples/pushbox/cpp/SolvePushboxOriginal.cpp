@@ -175,8 +175,8 @@ int main(){
 
     pushboxProblem.addObjective(obj);
     pushboxProblem.addEqualityConstraint(dynamics);
-    pushboxProblem.addEqualityConstraint(initial);
     pushboxProblem.addInequalityConstraint(contact);
+    pushboxProblem.addEqualityConstraint(initial);
     pushboxProblem.addInequalityConstraint(contactSingleForce);
 
     // problem parameters

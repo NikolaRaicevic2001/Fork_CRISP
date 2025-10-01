@@ -147,10 +147,10 @@ ad_function_with_param_t pushboxInitialConstraints = [](const ad_vector_t& x, co
     y.segment(0, 3) << x[0] - p[0], x[1] - p[1], x[2] - p[2];
 };
 
-// ad_function_with_param_t pushboxInitialConstraintsEndEffector = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
-//     y.resize(2);
-//     y.segment(0, 2) << x[3] - p[0], x[4] - p[1];
-// };
+ad_function_with_param_t pushboxInitialConstraintsEndEffector = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
+    y.resize(2);
+    y.segment(0, 2) << x[3] - p[0], x[4] - p[1];
+};
 
 // cost function for pushbox
 ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
@@ -198,22 +198,22 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
             tracking_cost += tracking_error.transpose() * Q * tracking_error;
         }
 
-        // // Penalize large distance traveled by the box
-        // if (i < N - 1) {
-        //     ad_vector_t tracking_error_whole(num_state);
-        //     tracking_error_whole << px_i - p[0], py_i - p[1], theta_i - p[2];
-        //     tracking_cost += tracking_error_whole.transpose() * P * tracking_error_whole;
-        // }
+        // Penalize large distance traveled by the box
+        if (i < N - 1) {
+            ad_vector_t tracking_error_whole(num_state);
+            tracking_error_whole << px_i - p[0], py_i - p[1], theta_i - p[2];
+            tracking_cost += tracking_error_whole.transpose() * P * tracking_error_whole;
+        }
 
-        // // Penalize the difference between the contact point to prevent large jumps
-        // if (i < N - 1) {
-        //     ad_vector_t contact_point_diff(2);
-        //     ad_scalar_t cx_next, cy_next;
-        //     cx_next = x[idx_next + 3];
-        //     cy_next = x[idx_next + 4];
-        //     contact_point_diff << cx_i - cx_next, cy_i - cy_next;
-        //     control_cost += contact_point_diff.transpose() * M * contact_point_diff;
-        // }
+        // Penalize the difference between the contact point to prevent large jumps
+        if (i < N - 1) {
+            ad_vector_t contact_point_diff(2);
+            ad_scalar_t cx_next, cy_next;
+            cx_next = x[idx_next + 3];
+            cy_next = x[idx_next + 4];
+            contact_point_diff << cx_i - cx_next, cy_i - cy_next;
+            control_cost += contact_point_diff.transpose() * M * contact_point_diff;
+        }
 
         // Penalize the contact forces to prevent excessive forces
         if (i < N - 1) {
@@ -254,12 +254,12 @@ int main(){
     vector_t xOptimal(variableNum);
 
     // xInitialStates << 0.4, 0.0, 0.0;
-    xInitialStates << 0.35766736, 0.08357876, 0.42412436;       // Suboptimal initial condition
-    // xInitialStates << 0.35766736, 0.08357876, 1.42412436;    // Suboptimal initial condition
+    // xInitialStates << 0.35766736, 0.08357876, 0.42412436;       // Suboptimal initial condition
+    xInitialStates << 0.35766736, 0.08357876, 1.42412436;    // Suboptimal initial condition
     xInitialStates_ee << 0.0, -4*b;
     xFinalStates << 0.4, 0.3, 0.0;
-    // xInitialGuess.setZero();
-    xInitialGuess = makeRandomFirstGuess(N, num_state, num_control, a, b, /*seed=*/100);
+    xInitialGuess.setZero();
+    // xInitialGuess = makeRandomFirstGuess(N, num_state, num_control, a, b, /*seed=*/100);
     std::cout << "Initial State: " << xInitialStates.transpose() << std::endl;
     std::cout << "Initial State End Effector: " << xInitialStates_ee.transpose() << std::endl;
     std::cout << "Final State: " << xFinalStates.transpose() << std::endl;

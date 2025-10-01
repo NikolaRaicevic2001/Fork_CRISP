@@ -198,8 +198,8 @@ ad_function_with_param_t pushboxObjective = [](const ad_vector_t& x, const ad_ve
         P(2, 2) = 0.01;
         ad_matrix_t M(2, 2);
         M.setZero();
-        M(0, 0) = 0.05;
-        M(1, 1) = 0.05;
+        M(0, 0) = 0.08;
+        M(1, 1) = 0.08;
         ad_matrix_t R(1, 1);
         R.setZero();
         R(0, 0) = 0.0001;
@@ -264,8 +264,8 @@ int main(){
     vector_t xInitialStates_ee(2);
     vector_t xOptimal(variableNum);
 
-    xInitialStates << 0.4, 0.0, 0.0;
-    // xInitialStates << 0.35766736, 0.08357876, 0.42412436;  // Suboptimal initial condition
+    // xInitialStates << 0.4, 0.0, 0.0;
+    xInitialStates << 0.35766736, 0.08357876, 0.42412436;  // Suboptimal initial condition
     // xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
     xInitialStates_ee << 0.0, -4*b;
     xInitialGuess.setZero();
