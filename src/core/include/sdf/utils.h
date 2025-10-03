@@ -6,15 +6,19 @@
 #include <Eigen/Core>
 #include <cppad/cppad.hpp>
 
+// Forward-declare CG<Base> so we can specialize traits without including cg.hpp
+namespace CppAD { namespace cg { template<class Base> class CG; } }
+
 template<class T>
 struct Sdf2D {
     T d;                                  // signed distance (>=0 outside)
     Eigen::Matrix<T,2,1> n;               // unit outward normal (‖n‖ = 1)
 };
 
-// Detect CppAD AD types
+// Detect CppAD AD types (cover AD<Base> and CG<Base>)
 template<class T> struct is_ad : std::false_type {};
-template<class Base> struct is_ad< CppAD::AD<Base> > : std::true_type {};
+template<class Base> struct is_ad< CppAD::AD<Base> >     : std::true_type {};
+template<class Base> struct is_ad< CppAD::cg::CG<Base> > : std::true_type {};
 
 // Conditional expression wrappers: use CppAD when T is AD, else plain ternary.
 template<class T>
@@ -35,14 +39,17 @@ inline T cexp_lt(const T& x, const T& y, const T& a, const T& b) {
 
 // Math wrappers: CppAD for AD types, std for arithmetic.
 template<class T>
-inline T ad_abs(const T& x) {
-    if constexpr (is_ad<T>::value) return CppAD::abs(x);
-    else                           return T(std::abs(double(x)));
+inline T ad_abs(const T& x){
+    if constexpr (is_ad<T>::value)            return CppAD::abs(x);
+    else if constexpr (std::is_arithmetic_v<T>) return T(std::abs(static_cast<double>(x)));
+    else                                       return CppAD::abs(x);
 }
+
 template<class T>
-inline T ad_sqrt(const T& x) {
-    if constexpr (is_ad<T>::value) return CppAD::sqrt(x);
-    else                           return T(std::sqrt(double(x)));
+inline T ad_sqrt(const T& x){
+    if constexpr (is_ad<T>::value)            return CppAD::sqrt(x);
+    else if constexpr (std::is_arithmetic_v<T>) return T(std::sqrt(static_cast<double>(x)));
+    else                                       return CppAD::sqrt(x);
 }
 
 template<class T>
