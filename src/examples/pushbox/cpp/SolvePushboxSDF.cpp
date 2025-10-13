@@ -77,6 +77,8 @@ public:
         J[1][1] = mask * k * (-nnxy);             // ∂nx/∂cy
         J[2][0] = mask * k * (-nnxy);             // ∂ny/∂cx
         J[2][1] = mask * k * (Base(1) - nnyy);    // ∂ny/∂cy
+
+        // J[1][0] = 0; J[1][1] = 0; J[2][0] = 0; J[2][1] = 0;
     }
 
 private:
@@ -292,17 +294,17 @@ ad_function_t pushboxDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t py_next     = x[idx + (num_state + num_control) + 1];
         ad_scalar_t theta_next  = x[idx + (num_state + num_control) + 2];
 
-        // V2ad p_i; p_i << cx_i, cy_i;
-        // const auto sdg = CRISP::sdf::sdfBoxRoundedSmooth<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
-        // const V2ad n_i = -sdg.n;
+        V2ad p_i; p_i << cx_i, cy_i;
+        const auto sdg = CRISP::sdf::sdfBoxRoundedSmooth<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
+        const V2ad n_i = -sdg.n;
 
-        std::vector<ad_scalar_t> xin(2), yout(3);
-        xin[0] = cx_i; xin[1] = cy_i;
-        g_sdf_dn(xin, yout);
-        ad_scalar_t d_i  = yout[0];
-        ad_scalar_t nx_i = yout[1];
-        ad_scalar_t ny_i = yout[2];
-        V2ad n_i; n_i << -nx_i, -ny_i;
+        // std::vector<ad_scalar_t> xin(2), yout(3);
+        // xin[0] = cx_i; xin[1] = cy_i;
+        // g_sdf_dn(xin, yout);
+        // ad_scalar_t d_i  = yout[0];
+        // ad_scalar_t nx_i = yout[1];
+        // ad_scalar_t ny_i = yout[2];
+        // V2ad n_i; n_i << -nx_i, -ny_i;
 
         const ad_scalar_t Fx = lambda_i * (CppAD::cos(theta_i)*n_i.x() - CppAD::sin(theta_i)*n_i.y());
         const ad_scalar_t Fy = lambda_i * (CppAD::sin(theta_i)*n_i.x() + CppAD::cos(theta_i)*n_i.y());
@@ -339,18 +341,18 @@ ad_function_t pushboxContactConstraints = [](const ad_vector_t& x, ad_vector_t& 
         ad_scalar_t cy_i    = x[idx + 4];
         ad_scalar_t lambda_i= x[idx + 5];
 
-        // V2ad p_i; p_i << cx_i, cy_i;
-        // const auto sdg = CRISP::sdf::sdfBoxRoundedSmooth<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
-        // const ad_scalar_t g_i = sdg.d;
+        V2ad p_i; p_i << cx_i, cy_i;
+        const auto sdg = CRISP::sdf::sdfBoxRoundedSmooth<ad_scalar_t>(p_i, half, ad_scalar_t(ROUND_R));
+        const ad_scalar_t g_i = sdg.d;
 
-        std::vector<ad_scalar_t> xin(2), yout(3);
-        xin[0] = cx_i; xin[1] = cy_i;
-        g_sdf_dn(xin, yout);
-        ad_scalar_t d_i  = yout[0];
-        ad_scalar_t nx_i = yout[1];
-        ad_scalar_t ny_i = yout[2];
-        V2ad n_i; n_i << -nx_i, -ny_i;
-        const ad_scalar_t g_i = d_i;
+        // std::vector<ad_scalar_t> xin(2), yout(3);
+        // xin[0] = cx_i; xin[1] = cy_i;
+        // g_sdf_dn(xin, yout);
+        // ad_scalar_t d_i  = yout[0];
+        // ad_scalar_t nx_i = yout[1];
+        // ad_scalar_t ny_i = yout[2];
+        // V2ad n_i; n_i << -nx_i, -ny_i;
+        // const ad_scalar_t g_i = d_i;
 
         y.segment(i*3,3) << lambda_i,                   // λ ≥ 0
                             g_i,                        // g ≥ 0
@@ -456,9 +458,9 @@ int main() {
     vector_t xInitialGuess(variableNum);
     vector_t xOptimal(variableNum);
 
-    xInitialStates << 0.4, 0.0, 0.0;
-    // xInitialStates << 0.35766736, 0.08357876, 0.42412436;  // Suboptimal initial condition
-    // xInitialStates << 0.35766736, 0.08357876, 1.42412436;  // Suboptimal initial condition
+    // xInitialStates << 0.4, 0.0, 0.0;
+    xInitialStates << 0.35766736, 0.08357876, 0.42412436;       // Suboptimal initial condition
+    // xInitialStates << 0.35766736, 0.08357876, 1.42412436;    // Suboptimal initial condition
     xInitialGuess.setZero();
     xFinalStates << 0.4, 0.3, 0.0;
     std::cout << "Initial State: " << xInitialStates.transpose() << std::endl;
