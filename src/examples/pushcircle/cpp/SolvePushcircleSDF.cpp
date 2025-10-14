@@ -58,7 +58,7 @@ ad_function_t pushcircleDynamicConstraints = [](const ad_vector_t& x, ad_vector_
 // contact implicit constraints for pushcircle
 ad_function_t pushcircleContactConstraints = [](const ad_vector_t& x, ad_vector_t& y){
     using V2ad = Eigen::Matrix<ad_scalar_t,2,1>;
-    y.resize((N-1)*3);
+    y.resize((N-1)*1);
 
     for (size_t i=0; i<N-1; ++i)
     {
@@ -73,9 +73,9 @@ ad_function_t pushcircleContactConstraints = [](const ad_vector_t& x, ad_vector_
         const auto sdg = CRISP::sdf::sdgCircle<ad_scalar_t>(p_i, ad_scalar_t(R));
         const ad_scalar_t g_i = sdg.d;
 
-        y.segment(i*3,3) << lam_i,          // λ ≥ 0  (handled as inequality)
-                            g_i,            // g ≥ 0
-                            -g_i*lam_i;     // -λ·g ≥ 0   ⇒ complementarity
+        y.segment(i*1,1) << lam_i;          // λ ≥ 0  (handled as inequality)
+                            // g_i,            // g ≥ 0
+                            // -g_i*lam_i;     // -λ·g ≥ 0   ⇒ complementarity
     }
 };
 
@@ -85,6 +85,28 @@ ad_function_with_param_t pushcircleInitialConstraints = [](const ad_vector_t& x,
     y.segment(0, 2) << x[0] - p[0], x[1] - p[1];
 };
 
+// Stay on the surface constraint
+ad_function_t pushcircleStayOnSurfaceConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
+    using V2ad = Eigen::Matrix<ad_scalar_t,2,1>;
+
+    y.resize(N*1);
+    for (size_t i=0; i<N; ++i)
+    {
+        size_t idx = i*(num_state+num_control);
+        ad_scalar_t px_i    = x[idx + 0];
+        ad_scalar_t py_i    = x[idx + 1];
+        ad_scalar_t cx_i    = x[idx + 2];
+        ad_scalar_t cy_i    = x[idx + 3];
+        ad_scalar_t lam_i   = x[idx + 4];
+
+        V2ad p_i; p_i << cx_i, cy_i;
+        const auto sdg = CRISP::sdf::sdgCircle<ad_scalar_t>(p_i, ad_scalar_t(R));
+        const ad_scalar_t g_i = sdg.d;
+
+        y.segment(i*1,1) << g_i;                        // g = 0
+    }
+};
+
 // cost function for pushcircle
 ad_function_with_param_t pushcircleObjective = [](const ad_vector_t& x, const ad_vector_t& p, ad_vector_t& y) {
     y.resize(1);
@@ -92,28 +114,55 @@ ad_function_with_param_t pushcircleObjective = [](const ad_vector_t& x, const ad
     ad_scalar_t tracking_cost(0.0);
     ad_scalar_t control_cost(0.0);
     for (size_t i = 0; i < N; ++i) {
-        size_t idx = i * (num_state + num_control);
+        const size_t idx = i * (num_state + num_control);
+        size_t idx_next = (i+1) * (num_state + num_control);
         // Extract state and control for current and next time steps
         ad_scalar_t px_i    = x[idx + 0];
         ad_scalar_t py_i    = x[idx + 1];
         ad_scalar_t cx_i    = x[idx + 2];
         ad_scalar_t cy_i    = x[idx + 3];
         ad_scalar_t lam_i   = x[idx + 4];
-
         ad_matrix_t Q(num_state, num_state);
         Q.setZero();
         Q(0, 0) = 100;
         Q(1, 1) = 100;
+        ad_matrix_t P(num_state, num_state);
+        P.setZero();
+        P(0, 0) = 0.01;
+        P(1, 1) = 0.01;
+        ad_matrix_t M(2, 2);
+        M.setZero();
+        M(0, 0) = 0.000001;
+        M(1, 1) = 0.000001;
         ad_matrix_t R(1, 1);
         R.setZero();
-        R(0, 0) = 0.001;
+        R(0, 0) = 0.0001;
 
+        // Penalize the tracking error at the final time step
         if (i == N - 1) {
             ad_vector_t tracking_error(num_state);
             tracking_error << px_i - p[0], py_i - p[1];
             tracking_cost += tracking_error.transpose() * Q * tracking_error;
         }
 
+        // Penalize large distance traveled by the box
+        if (i < N - 1) {
+            ad_vector_t tracking_error_whole(num_state);
+            tracking_error_whole << px_i - p[0], py_i - p[1];
+            tracking_cost += tracking_error_whole.transpose() * P * tracking_error_whole;
+        }
+
+        // // Penalize the difference between the contact point to prevent large jumps
+        // if (i < N - 1) {
+        //     ad_vector_t contact_point_diff(2);
+        //     ad_scalar_t cx_next, cy_next;
+        //     cx_next = x[idx_next + 3];
+        //     cy_next = x[idx_next + 4];
+        //     contact_point_diff << cx_i - cx_next, cy_i - cy_next;
+        //     control_cost += contact_point_diff.transpose() * M * contact_point_diff;
+        // }
+
+        // Penalize the contact forces to prevent excessive forces
         if (i < N - 1) {
             ad_vector_t control_error(1);
             control_error << lam_i;
@@ -133,20 +182,25 @@ int main(){
     auto dynamics = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushcircleDynamicConstraints", pushcircleDynamicConstraints);
     auto contact = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushcircleContactConstraints", pushcircleContactConstraints);
     auto initial = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "pushcircleInitialConstraints", pushcircleInitialConstraints);
+    auto stayOnSurface = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushcircleStayOnSurfaceConstraints", pushcircleStayOnSurfaceConstraints);
 
     // ---------------------- ! the above four lines are enough for generate the auto-differentiation functions library for this problem and the usage in python ! ---------------------- //
     pushcircleProblem.addObjective(obj);
     pushcircleProblem.addEqualityConstraint(dynamics);
-    pushcircleProblem.addEqualityConstraint(initial);
     pushcircleProblem.addInequalityConstraint(contact);
+    pushcircleProblem.addEqualityConstraint(initial);
+    pushcircleProblem.addEqualityConstraint(stayOnSurface);
 
     // problem parameters
     vector_t xInitialStates(num_state);
     vector_t xFinalStates(num_state);
     vector_t xInitialGuess(variableNum);
     vector_t xOptimal(variableNum);
-    // define a theta from 0 to 2pi, and define different final state for the problem with equal interval, for example 20 degree
-    xInitialStates << 0.5, 0.2;
+    
+    // xInitialStates << 0.5, 0.2;
+    xInitialStates << 0.3, 0.3;
+    // xInitialStates << 0.3, 0.5;
+
     // set zero initial guess
     xInitialGuess.setZero();
     for (size_t k = 2; k < xInitialGuess.size(); k += (num_state+num_control))
@@ -158,12 +212,28 @@ int main(){
     SolverParameters params;
     SolverInterface solver(pushcircleProblem, params);
     solver.setProblemParameters("pushcircleInitialConstraints", xInitialStates);
-    solver.setHyperParameters("maxIterations", vector_t::Constant(1, 5000));
+
+    solver.setHyperParameters("maxIterations", vector_t::Constant(1, 15000));
+    // solver.setHyperParameters("muMax", vector_t::Constant(1, 1e12));
+    // solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-5));
+    // solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
+    // solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
+    // // solver.setHyperParameters("verbose", vector_t::Constant(1, 1));  
+
+
+    // solver.setHyperParameters("trustRegionInitRadius", vector_t::Constant(1, 1.0));
+    // solver.setHyperParameters("trustRegionMaxRadius", vector_t::Constant(1, 10.0));
+    // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));
+    // solver.setHyperParameters("etaHigh", vector_t::Constant(1, 0.75));
+    // solver.setHyperParameters("mu", vector_t::Constant(1, 10.0));
     solver.setHyperParameters("muMax", vector_t::Constant(1, 1e12));
     solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-5));
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
+    solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-7));
     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
-    // solver.setHyperParameters("verbose", vector_t::Constant(1, 1));  
+    solver.setHyperParameters("WeightedTolFactor", vector_t::Constant(1, 10.0));
+    // solver.setHyperParameters("secondOrderCorrection", vector_t::Constant(1, 1));
+
         xFinalStates << 1.0, 1.0;
         solver.setProblemParameters("pushcircleObjective", xFinalStates);
         solver.initialize(xInitialGuess);
