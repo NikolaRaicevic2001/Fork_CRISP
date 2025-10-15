@@ -15,7 +15,7 @@ const scalar_t m = 1;                   // mass of the circle
 const scalar_t mu = 0.5;                // friction coefficient
 const scalar_t g = 9.8;                 // gravitational acceleration  
 const scalar_t dt = 0.02;               // time step size
-const size_t N = 200;                   // number of time steps
+const size_t N = 100;                   // number of time steps
 const size_t num_state = 2;             // STATE  (2) : [px, py]
 const size_t num_control = 3;           // CONTROL (3) : [cx, cy, λ ]
 
@@ -130,10 +130,6 @@ ad_function_with_param_t pushcircleObjective = [](const ad_vector_t& x, const ad
         P.setZero();
         P(0, 0) = 0.01;
         P(1, 1) = 0.01;
-        ad_matrix_t M(2, 2);
-        M.setZero();
-        M(0, 0) = 0.000001;
-        M(1, 1) = 0.000001;
         ad_matrix_t R(1, 1);
         R.setZero();
         R(0, 0) = 0.0001;
@@ -151,16 +147,6 @@ ad_function_with_param_t pushcircleObjective = [](const ad_vector_t& x, const ad
             tracking_error_whole << px_i - p[0], py_i - p[1];
             tracking_cost += tracking_error_whole.transpose() * P * tracking_error_whole;
         }
-
-        // // Penalize the difference between the contact point to prevent large jumps
-        // if (i < N - 1) {
-        //     ad_vector_t contact_point_diff(2);
-        //     ad_scalar_t cx_next, cy_next;
-        //     cx_next = x[idx_next + 3];
-        //     cy_next = x[idx_next + 4];
-        //     contact_point_diff << cx_i - cx_next, cy_i - cy_next;
-        //     control_cost += contact_point_diff.transpose() * M * contact_point_diff;
-        // }
 
         // Penalize the contact forces to prevent excessive forces
         if (i < N - 1) {
@@ -205,22 +191,14 @@ int main(){
     xInitialGuess.setZero();
     for (size_t k = 2; k < xInitialGuess.size(); k += (num_state+num_control))
     {
-        xInitialGuess[k]   =  R;   // cx_i
+        xInitialGuess[k]   =  R+0.01;   // cx_i
         xInitialGuess[k+1] =  0;   // cy_i
     }
 
     SolverParameters params;
     SolverInterface solver(pushcircleProblem, params);
     solver.setProblemParameters("pushcircleInitialConstraints", xInitialStates);
-
-    solver.setHyperParameters("maxIterations", vector_t::Constant(1, 15000));
-    // solver.setHyperParameters("muMax", vector_t::Constant(1, 1e12));
-    // solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-5));
-    // solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
-    // solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
-    // // solver.setHyperParameters("verbose", vector_t::Constant(1, 1));  
-
-
+    // solver.setHyperParameters("maxIterations", vector_t::Constant(1, 15000));
     // solver.setHyperParameters("trustRegionInitRadius", vector_t::Constant(1, 1.0));
     // solver.setHyperParameters("trustRegionMaxRadius", vector_t::Constant(1, 10.0));
     // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));
@@ -234,15 +212,15 @@ int main(){
     solver.setHyperParameters("WeightedTolFactor", vector_t::Constant(1, 10.0));
     // solver.setHyperParameters("secondOrderCorrection", vector_t::Constant(1, 1));
 
-        xFinalStates << 1.0, 1.0;
-        solver.setProblemParameters("pushcircleObjective", xFinalStates);
-        solver.initialize(xInitialGuess);
-        solver.solve();
-        xOptimal = solver.getSolution();
+    xFinalStates << 1.0, 1.0;
+    solver.setProblemParameters("pushcircleObjective", xFinalStates);
+    solver.initialize(xInitialGuess);
+    solver.solve();
+    xOptimal = solver.getSolution();
 
-        std::ofstream log(PROJECT_ROOT / "examples/pushcircle/results/results_pushcircle_sdf.csv");
-        for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
-        log.close();                              
+    std::ofstream log(PROJECT_ROOT / "examples/pushcircle/results/results_pushcircle_sdf.csv");
+    for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
+    log.close();                              
 
     }
 
