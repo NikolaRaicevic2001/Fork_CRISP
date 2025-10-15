@@ -7,6 +7,8 @@
 
 #include "sdf/Circle.h"
 
+using CppAD::AD;
+using CppAD::vector;
 using namespace CRISP;
 
 // Define model parameters for circle
@@ -19,8 +21,10 @@ const size_t N = 100;                   // number of time steps
 const size_t num_state = 2;             // STATE  (2) : [px, py]
 const size_t num_control = 3;           // CONTROL (3) : [cx, cy, λ ]
 
+// ----------------------- Atomic functions for circle SDF and GRAD -----------------------
+
 // Global variables for the problem
-static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();    
+static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();
 
 // ---------- Atomics for circle: SDF and GRAD (custom Jacobians) -------------
 // x=[cx, cy] -> y=[d]
@@ -345,6 +349,135 @@ int main(){
     solver.initialize(xInitialGuess);
     solver.solve();
     xOptimal = solver.getSolution();
+
+    // ----------------------------------------------------------------
+    // ---------------------- HELPER FUNCTIONS ------------------------
+    // ----------------------------------------------------------------
+    auto print_grad_compare = [&](double cx, double cy, const char* tag) {
+        const double eps = 1e-12;
+
+        // ---------- Plain CppAD tape of sdfCircle ----------
+        vector< AD<double> > X(2);
+        X[0] = cx;  X[1] = cy;
+        CppAD::Independent(X);
+
+        Eigen::Matrix< AD<double>, 2, 1 > p;
+        p << X[0], X[1];
+        AD<double> d_plain = CRISP::sdf::sdfCircle< AD<double> >(p, AD<double>(R), AD<double>(eps));
+
+        vector< AD<double> > Y(1);
+        Y[0] = d_plain;
+        CppAD::ADFun<double> f_cppad(X, Y);
+
+        // ---------- Atomic tape using your atomic SDF ----------
+        vector< AD<double> > Xa(2);
+        Xa[0] = cx;  Xa[1] = cy;
+        CppAD::Independent(Xa);
+
+        std::vector< AD<double> > xin(2), yout(1);
+        xin[0] = Xa[0];
+        xin[1] = Xa[1];
+        // call the atomic (double-based instance so we can build ADFun<double>)
+        g_circle_sdf_dbg(xin, yout);
+
+        vector< AD<double> > Ya(1);
+        Ya[0] = yout[0];
+        CppAD::ADFun<double> f_atomic(Xa, Ya);
+
+        // ---------- Evaluate both Jacobians at (cx, cy) ----------
+        std::vector<double> x = {cx, cy};
+        std::vector<double> jac_plain  = f_cppad.Jacobian(x);   // size 1*2
+        std::vector<double> jac_atomic = f_atomic.Jacobian(x);  // size 1*2
+
+        // print
+        std::cout << std::setprecision(12);
+        std::cout << "\n[Grad check] " << tag << "  p=(" << cx << ", " << cy << ")\n";
+        std::cout << "  CppAD  grad: [" << jac_plain[0]  << ", " << jac_plain[1]  << "]\n";
+        std::cout << "  Atomic grad: [" << jac_atomic[0] << ", " << jac_atomic[1] << "]\n";
+        std::cout << "  diff       : [" << (jac_plain[0] - jac_atomic[0]) << ", " << (jac_plain[1] - jac_atomic[1]) << "]\n";
+    };
+
+    auto print_hess_compare = [&](double cx, double cy, const char* tag) {
+        const double eps = 1e-12;
+
+        // ---------- Plain CppAD tape: Y = gradCircle(X) ----------
+        vector< AD<double> > X(2);
+        X[0] = cx;  X[1] = cy;
+        CppAD::Independent(X);
+
+        Eigen::Matrix< AD<double>, 2, 1 > p;
+        p << X[0], X[1];
+        Eigen::Matrix< AD<double>, 2, 1 > g_plain = CRISP::sdf::gradCircle< AD<double> >(p, AD<double>(R), AD<double>(eps));
+
+        vector< AD<double> > Y(2);
+        Y[0] = g_plain.x();
+        Y[1] = g_plain.y();
+        CppAD::ADFun<double> f_grad_cppad(X, Y);   // R^2 -> R^2
+
+        // ---------- Atomic tape: Ya = atomic_grad(Xa) ----------
+        vector< AD<double> > Xa(2);
+        Xa[0] = cx;  Xa[1] = cy;
+        CppAD::Independent(Xa);
+
+        std::vector< AD<double> > xin(2), yout(2);
+        xin[0] = Xa[0];
+        xin[1] = Xa[1];
+        g_circle_grad_dbg(xin, yout);              // atomic grad -> [nx, ny]
+
+        vector< AD<double> > Ya(2);
+        Ya[0] = yout[0];
+        Ya[1] = yout[1];
+        CppAD::ADFun<double> f_grad_atomic(Xa, Ya); // R^2 -> R^2
+
+        // ---------- Evaluate Jacobians (these are Hessians of d) ----------
+        std::vector<double> x = {cx, cy};
+        // Flattened as row-major: [ d(nx)/dcx, d(nx)/dcy, d(ny)/dcx, d(ny)/dcy ]
+        std::vector<double> J_plain  = f_grad_cppad.Jacobian(x);
+        std::vector<double> J_atomic = f_grad_atomic.Jacobian(x);
+
+        auto fmt = std::fixed; int prec = 12;
+        std::cout << "\n[Hess check] " << tag << "  p=(" << cx << ", " << cy << ")\n";
+        std::cout << std::setprecision(prec) << std::fixed;
+
+        // Unpack into 2x2
+        double Hpp_xx = J_plain[0*2 + 0], Hpp_xy = J_plain[0*2 + 1];
+        double Hpp_yx = J_plain[1*2 + 0], Hpp_yy = J_plain[1*2 + 1];
+
+        double Hat_xx = J_atomic[0*2 + 0], Hat_xy = J_atomic[0*2 + 1];
+        double Hat_yx = J_atomic[1*2 + 0], Hat_yy = J_atomic[1*2 + 1];
+
+        std::cout << "  CppAD  Hess:\n" << "    [" << Hpp_xx << ", " << Hpp_xy << "]\n" << "    [" << Hpp_yx << ", " << Hpp_yy << "]\n";
+        std::cout << "  Atomic Hess:\n" << "    [" << Hat_xx << ", " << Hat_xy << "]\n" << "    [" << Hat_yx << ", " << Hat_yy << "]\n";
+        std::cout << "  diff:\n" << "    [" << (Hpp_xx - Hat_xx) << ", " << (Hpp_xy - Hat_xy) << "]\n" << "    [" << (Hpp_yx - Hat_yx) << ", " << (Hpp_yy - Hat_yy) << "]\n";
+
+        // Optional: symmetry diagnostics
+        double sym_plain  = std::abs(Hpp_xy - Hpp_yx);
+        double sym_atomic = std::abs(Hat_xy - Hat_yx);
+        std::cout << "  |H_xy - H_yx|  CppAD=" << sym_plain
+                << "  Atomic=" << sym_atomic << "\n";
+    };
+
+    // Grab a few contact points from the solution
+    auto read_contact = [&](size_t i) -> std::pair<double,double> {
+        const size_t idx = i * (num_state + num_control);
+        return { xOptimal[idx + 2], xOptimal[idx + 3] }; // (cx_i, cy_i)
+    };
+
+    // avoid points extremely close to the origin (undefined direction), but your eps guards it anyway
+    auto [c0x, c0y]             = read_contact(0);
+    auto [cmidx, cmidy]         = read_contact(N/2);
+    auto [clastx, clasty]       = read_contact(N-1);
+
+    print_grad_compare(c0x,   c0y,   "start");
+    print_grad_compare(cmidx, cmidy, "mid");
+    print_grad_compare(clastx,clasty,"end");
+
+    print_hess_compare(c0x,   c0y,   "start");
+    print_hess_compare(cmidx, cmidy, "mid");
+    print_hess_compare(clastx,clasty,"end");
+    // ------------------------------------------------------------------------------------------------------------------------- //
+    // ---------------------- ! the above helper functions are for validating the atomic functions only ! ---------------------- //
+    // ------------------------------------------------------------------------------------------------------------------------- //
 
     std::ofstream log(PROJECT_ROOT / "examples/pushcircle/results/results_pushcircle_sdf.csv");
     for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';

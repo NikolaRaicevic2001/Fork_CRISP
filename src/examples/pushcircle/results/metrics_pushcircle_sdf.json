@@ -1,8 +1,8 @@
 {
-  "total_contact_path_m": 1.6487559876719908,
-  "total_contact_path_active_m": 1.4771120530747415,
-  "avg_contact_speed_active_mps": 0.7613979655024441,
-  "active_time_s": 1.94,
+  "total_contact_path_m": 1.0287466103873322,
+  "total_contact_path_active_m": 0.9341983433114622,
+  "avg_contact_speed_active_mps": 0.4766318078119705,
+  "active_time_s": 1.96,
   "dt": 0.02,
   "N": 100,
   "example": "pushcircle",
