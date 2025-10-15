@@ -137,5 +137,99 @@ if all(k in data.dtype.names for k in ("hxx", "hxy", "hyx", "hyy")):
 else:
     print("Hessian columns not found in CSV; skipping Hessian figure.")
 
+# -------------------- Figure 4: Principal curvatures & directions -------------------
+if all(k in data.dtype.names for k in ("hxx", "hxy", "hyx", "hyy")):
+    # Use the already prepared HXX, HXY (symmetrized), HYY, plus X/Y extents
+    A = HXX
+    B = HXY
+    C = HYY
+
+    # Closed-form eigenvalues for symmetric 2x2 [[A,B],[B,C]]
+    T  = A + C
+    D  = np.sqrt((A - C)**2 + 4.0 * B**2)  # discriminant (>=0)
+    Lmax = 0.5 * (T + D)
+    Lmin = 0.5 * (T - D)
+
+    # Corresponding eigenvectors (unnormalized). Choose a stable formula:
+    # For lambda: v = [B, lambda - A]. If near-zero vector, fall back to [lambda - C, B].
+    def eigvec_components(lmbd):
+        vx = B
+        vy = lmbd - A
+        norm = np.hypot(vx, vy)
+        # fallback where norm is tiny
+        mask = norm < 1e-12
+        vx_alt = lmbd - C
+        vy_alt = B
+        norm_alt = np.hypot(vx_alt, vy_alt)
+        vx = np.where(mask, vx_alt, vx)
+        vy = np.where(mask, vy_alt, vy)
+        norm = np.where(mask, norm_alt, norm)
+        vx /= np.where(norm == 0, 1.0, norm)
+        vy /= np.where(norm == 0, 1.0, norm)
+        return vx, vy
+
+    Vx_max, Vy_max = eigvec_components(Lmax)
+    Vx_min, Vy_min = eigvec_components(Lmin)
+
+    # Plot
+    QUIVER_EIG_STEP  = 12     # subsample for readability
+    QUIVER_EIG_SCALE = 35.0   # arrow scaling
+    ZOOM = (-0.7, 0.7, -0.7, 0.7)
+
+    def robust_norm(Z):
+        finite = Z[np.isfinite(Z)]
+        if finite.size == 0:
+            return 1.0
+        lo, hi = np.percentile(finite, [1, 99])
+        return max(abs(lo), abs(hi))
+
+    # Build normalization
+    zmax1 = robust_norm(Lmax); norm1 = TwoSlopeNorm(vmin=-zmax1, vcenter=0.0, vmax=zmax1)
+    zmax2 = robust_norm(Lmin); norm2 = TwoSlopeNorm(vmin=-zmax2, vcenter=0.0, vmax=zmax2)
+
+    # Create figure
+    fig4, axes = plt.subplots(2, 1, figsize=(7.5, 9))
+    plt.subplots_adjust(left=0.10, right=0.88, bottom=0.08, top=0.93, hspace=0.18)
+
+    # Panel 1: Lmax + eigenvectors
+    im1 = axes[0].imshow(
+        Lmax, extent=(xs.min(), xs.max(), ys.min(), ys.max()),
+        origin="lower", cmap=COLORMAP, norm=norm1, interpolation="bilinear", aspect="equal"
+    )
+    axes[0].quiver(
+        X[::QUIVER_EIG_STEP, ::QUIVER_EIG_STEP],
+        Y[::QUIVER_EIG_STEP, ::QUIVER_EIG_STEP],
+        Vx_max[::QUIVER_EIG_STEP, ::QUIVER_EIG_STEP],
+        Vy_max[::QUIVER_EIG_STEP, ::QUIVER_EIG_STEP],
+        pivot="mid", scale=QUIVER_EIG_SCALE, width=0.004
+    )
+    axes[0].set_title(r"Principal curvature $\lambda_{\max}$ with direction", fontsize=11)
+    axes[0].set_xlim(ZOOM[0], ZOOM[1]); axes[0].set_ylim(ZOOM[2], ZOOM[3])
+
+    # Panel 2: Lmin + eigenvectors
+    im2 = axes[1].imshow(
+        Lmin, extent=(xs.min(), xs.max(), ys.min(), ys.max()),
+        origin="lower", cmap=COLORMAP, norm=norm2, interpolation="bilinear", aspect="equal"
+    )
+    axes[1].quiver(
+        X[::QUIVER_EIG_STEP, ::QUIVER_EIG_STEP],
+        Y[::QUIVER_EIG_STEP, ::QUIVER_EIG_STEP],
+        Vx_min[::QUIVER_EIG_STEP, ::QUIVER_EIG_STEP],
+        Vy_min[::QUIVER_EIG_STEP, ::QUIVER_EIG_STEP],
+        pivot="mid", scale=QUIVER_EIG_SCALE, width=0.004
+    )
+    axes[1].set_title(r"Principal curvature $\lambda_{\min}$ with direction", fontsize=11)
+    axes[1].set_xlim(ZOOM[0], ZOOM[1]); axes[1].set_ylim(ZOOM[2], ZOOM[3])
+
+    # Shared colorbars
+    cbar_ax1 = fig4.add_axes([0.90, 0.56, 0.02, 0.32])
+    cbar_ax2 = fig4.add_axes([0.90, 0.12, 0.02, 0.32])
+    fig4.colorbar(im1, cax=cbar_ax1, label=r"$\lambda_{\max}$")
+    fig4.colorbar(im2, cax=cbar_ax2, label=r"$\lambda_{\min}$")
+
+    out_principal = (RESULTS_DIR / "hessian" / f"{STEM}_principal.png")
+    fig4.suptitle(f"{CSV_FILENAME} — Principal curvatures & directions", fontsize=12)
+    fig4.savefig(out_principal, dpi=300)
+    print(f"Saved: {out_principal}")
 
 plt.show()

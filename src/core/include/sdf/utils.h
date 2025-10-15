@@ -15,6 +15,14 @@ struct Sdf2D {
     Eigen::Matrix<T,2,1> n;               // unit outward normal (‖n‖ = 1)
 };
 
+template<class T>
+struct Sdf2DFull { 
+    T d; 
+    Eigen::Matrix<T,2,1> grad; 
+    Eigen::Matrix<T,2,2> H;
+};
+
+
 // Detect CppAD AD types (cover AD<Base> and CG<Base>)
 template<class T> struct is_ad : std::false_type {};
 template<class Base> struct is_ad< CppAD::AD<Base> >     : std::true_type {};

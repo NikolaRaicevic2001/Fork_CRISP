@@ -22,6 +22,123 @@ const size_t num_control = 3;           // CONTROL (3) : [cx, cy, λ ]
 // Global variables for the problem
 static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();    
 
+// ---------- Atomics for circle: SDF and GRAD (custom Jacobians) -------------
+// x=[cx, cy] -> y=[d]
+template <class Base>
+class AtomicCircleSDF : public CppAD::atomic_four<Base> {
+public:
+    explicit AtomicCircleSDF(Base radius, Base eps = Base(0))
+    : CppAD::atomic_four<Base>("circle_sdf_x2"), R_(radius), eps_(eps) {}
+
+private:
+    Base R_, eps_;
+
+    bool for_type(size_t, const CppAD::vector<CppAD::ad_type_enum>& tx,
+                  CppAD::vector<CppAD::ad_type_enum>& ty) override { ty[0]=tx[0]; return true; }
+
+    bool forward(size_t, const CppAD::vector<bool>&, size_t ol, size_t ou,
+                 const CppAD::vector<Base>& tX, CppAD::vector<Base>& tY) override {
+        const size_t q = ou + 1;
+        const Base cx0 = tX[0*q + 0], cy0 = tX[1*q + 0];
+        Eigen::Matrix<Base,2,1> p(cx0, cy0);
+
+        const Base d0 = CRISP::sdf::sdfCircle(p, R_, eps_);
+        if (ol <= 0) tY[0*q + 0] = d0;
+        if (ou < 1)  return true;
+
+        const Base dcx = tX[0*q + 1], dcy = tX[1*q + 1];
+        const auto g = CRISP::sdf::gradCircle(p, R_, eps_);
+        tY[0*q + 1] = g.x()*dcx + g.y()*dcy;
+        return true;
+    }
+
+    bool reverse(size_t, const CppAD::vector<bool>&, size_t ou,
+                 const CppAD::vector<Base>& tX, const CppAD::vector<Base>&,
+                 CppAD::vector<Base>& pX, const CppAD::vector<Base>& pY) override {
+        if (ou != 0) return false;
+        const size_t q = 1;
+        const Base cx0 = tX[0*q + 0], cy0 = tX[1*q + 0];
+        Eigen::Matrix<Base,2,1> p(cx0, cy0);
+        const auto g = CRISP::sdf::gradCircle(p, R_, eps_);
+        const Base pd = pY[0*q + 0];
+        pX[0*q + 0] += g.x() * pd;
+        pX[1*q + 0] += g.y() * pd;
+        return true;
+    }
+
+    bool jac_sparsity(size_t, bool, const CppAD::vector<bool>&,
+                      const CppAD::vector<bool>& sel_x, const CppAD::vector<bool>& sel_y,
+                      CppAD::sparse_rc< CppAD::vector<size_t> >& pat) override {
+        size_t nnz = (sel_y[0]? (sel_x[0]?1:0) + (sel_x[1]?1:0) : 0);
+        pat.resize(1, 2, nnz);
+        size_t k=0; if (sel_y[0]) { if (sel_x[0]) pat.set(k++,0,0); if (sel_x[1]) pat.set(k++,0,1); }
+        return true;
+    }
+};
+
+// x=[cx, cy] -> y=[nx, ny]
+template <class Base>
+class AtomicCircleGrad : public CppAD::atomic_four<Base> {
+public:
+    explicit AtomicCircleGrad(Base radius, Base eps = Base(0))
+    : CppAD::atomic_four<Base>("circle_grad_x2"), R_(radius), eps_(eps) {}
+
+private:
+    Base R_, eps_;
+
+    bool for_type(size_t, const CppAD::vector<CppAD::ad_type_enum>& tx,
+                  CppAD::vector<CppAD::ad_type_enum>& ty) override { ty[0]=tx[0]; ty[1]=tx[0]; return true; }
+
+    bool forward(size_t, const CppAD::vector<bool>&, size_t ol, size_t ou,
+                 const CppAD::vector<Base>& tX, CppAD::vector<Base>& tY) override {
+        const size_t q = ou + 1;
+        const Base cx0 = tX[0*q + 0], cy0 = tX[1*q + 0];
+        Eigen::Matrix<Base,2,1> p(cx0, cy0);
+
+        const auto g0 = CRISP::sdf::gradCircle(p, R_, eps_);
+        if (ol <= 0) { tY[0*q + 0] = g0.x(); tY[1*q + 0] = g0.y(); }
+        if (ou < 1)  return true;
+
+        const Base dcx = tX[0*q + 1], dcy = tX[1*q + 1];
+        const auto H = CRISP::sdf::hessianCircle(p, R_, eps_);
+        tY[0*q + 1] = H(0,0)*dcx + H(0,1)*dcy;
+        tY[1*q + 1] = H(1,0)*dcx + H(1,1)*dcy;
+        return true;
+    }
+
+    bool reverse(size_t, const CppAD::vector<bool>&, size_t ou,
+                 const CppAD::vector<Base>& tX, const CppAD::vector<Base>&,
+                 CppAD::vector<Base>& pX, const CppAD::vector<Base>& pY) override {
+        if (ou != 0) return false;
+        const size_t q = 1;
+        const Base cx0 = tX[0*q + 0], cy0 = tX[1*q + 0];
+        Eigen::Matrix<Base,2,1> p(cx0, cy0);
+        const auto H = CRISP::sdf::hessianCircle(p, R_, eps_);
+        const Base pnx = pY[0*q + 0], pny = pY[1*q + 0];
+        // px += H^T * py  (H is symmetric)
+        pX[0*q + 0] += H(0,0)*pnx + H(0,1)*pny;
+        pX[1*q + 0] += H(1,0)*pnx + H(1,1)*pny;
+        return true;
+    }
+
+    bool jac_sparsity(size_t, bool, const CppAD::vector<bool>&,
+                      const CppAD::vector<bool>& sel_x, const CppAD::vector<bool>& sel_y,
+                      CppAD::sparse_rc< CppAD::vector<size_t> >& pat) override {
+        size_t nnz=0; for (int i=0;i<2;++i) if (sel_y[i]) for (int j=0;j<2;++j) if (sel_x[j]) ++nnz;
+        pat.resize(2,2,nnz);
+        size_t k=0; for (int i=0;i<2;++i) if (sel_y[i]) for (int j=0;j<2;++j) if (sel_x[j]) pat.set(k++, i, j);
+        return true;
+    }
+};
+
+using CGD = CppAD::cg::CG<double>;
+static AtomicCircleSDF<CGD>    g_circle_sdf_cg( CGD(R), CGD(1e-12) );
+static AtomicCircleSDF<double> g_circle_sdf_dbg( R, 1e-12 );
+
+static AtomicCircleGrad<CGD>    g_circle_grad_cg( CGD(R), CGD(1e-12) );
+static AtomicCircleGrad<double> g_circle_grad_dbg( R, 1e-12 );
+
+// ----------------------- Dynamics constraints ------------------------
 // define the dynamics constraints
 ad_function_t pushcircleDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
     using V2ad = Eigen::Matrix<ad_scalar_t,2,1>;
@@ -38,9 +155,16 @@ ad_function_t pushcircleDynamicConstraints = [](const ad_vector_t& x, ad_vector_
         ad_scalar_t px_next = x[idx + (num_state + num_control) + 0];
         ad_scalar_t py_next = x[idx + (num_state + num_control) + 1];
 
+        // // n = grad(d) at p_i  (unit outward normal)
+        // std::vector<ad_scalar_t> xin(2), yout(2);
+        // xin[0] = p_i.x();  xin[1] = p_i.y();
+        // g_circle_grad_cg(xin, yout);
+        // V2ad n_i; n_i << -yout[0], -yout[1];   // inward normal for pushing
+
+        // outward unit normal at the surface; pushing uses inward
         V2ad p_i; p_i << cx_i, cy_i;
         const auto sdg = CRISP::sdf::sdgCircle<ad_scalar_t>(p_i, ad_scalar_t(R));
-        const V2ad n_i = -sdg.n;
+        V2ad n_i = -sdg.n;   // inward normal for pushing
 
         ad_scalar_t Fx = lam_i * n_i.x();
         ad_scalar_t Fy = lam_i * n_i.y();
@@ -55,6 +179,7 @@ ad_function_t pushcircleDynamicConstraints = [](const ad_vector_t& x, ad_vector_
     }
 };
 
+// ------------------- Contact Implicit Constraints --------------------
 // contact implicit constraints for pushcircle
 ad_function_t pushcircleContactConstraints = [](const ad_vector_t& x, ad_vector_t& y){
     using V2ad = Eigen::Matrix<ad_scalar_t,2,1>;
@@ -68,10 +193,6 @@ ad_function_t pushcircleContactConstraints = [](const ad_vector_t& x, ad_vector_
         ad_scalar_t cx_i    = x[idx + 2];
         ad_scalar_t cy_i    = x[idx + 3];
         ad_scalar_t lam_i   = x[idx + 4];
-
-        V2ad p_i; p_i << cx_i, cy_i;
-        const auto sdg = CRISP::sdf::sdgCircle<ad_scalar_t>(p_i, ad_scalar_t(R));
-        const ad_scalar_t g_i = sdg.d;
 
         y.segment(i*1,1) << lam_i;          // λ ≥ 0  (handled as inequality)
                             // g_i,            // g ≥ 0
@@ -101,7 +222,12 @@ ad_function_t pushcircleStayOnSurfaceConstraints = [](const ad_vector_t& x, ad_v
 
         V2ad p_i; p_i << cx_i, cy_i;
         const auto sdg = CRISP::sdf::sdgCircle<ad_scalar_t>(p_i, ad_scalar_t(R));
-        const ad_scalar_t g_i = sdg.d;
+        ad_scalar_t g_i = sdg.d;
+
+        // std::vector<ad_scalar_t> xin(2), yout(1);
+        // xin[0] = p_i.x(); xin[1] = p_i.y();
+        // g_circle_sdf_cg(xin, yout);
+        // ad_scalar_t g_i = yout[0];
 
         y.segment(i*1,1) << g_i;                        // g = 0
     }
@@ -183,9 +309,9 @@ int main(){
     vector_t xInitialGuess(variableNum);
     vector_t xOptimal(variableNum);
     
-    // xInitialStates << 0.5, 0.2;
-    xInitialStates << 0.3, 0.3;
-    // xInitialStates << 0.3, 0.5;
+    xInitialStates << 0.5, 0.2;
+    // xInitialStates << 0.3, 0.3;
+    // xInitialStates << -0.3, 0.5;
 
     // set zero initial guess
     xInitialGuess.setZero();
@@ -204,7 +330,7 @@ int main(){
     // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));
     // solver.setHyperParameters("etaHigh", vector_t::Constant(1, 0.75));
     // solver.setHyperParameters("mu", vector_t::Constant(1, 10.0));
-    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e12));
+    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e30));
     solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-5));
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
     solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-7));
