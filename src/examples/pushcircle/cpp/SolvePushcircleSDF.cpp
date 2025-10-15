@@ -163,8 +163,8 @@ ad_function_t pushcircleDynamicConstraints = [](const ad_vector_t& x, ad_vector_
 
         // outward unit normal at the surface; pushing uses inward
         V2ad p_i; p_i << cx_i, cy_i;
-        const auto sdg = CRISP::sdf::sdgCircle<ad_scalar_t>(p_i, ad_scalar_t(R));
-        V2ad n_i = -sdg.n;   // inward normal for pushing
+        V2ad grad_i = CRISP::sdf::gradCircle<ad_scalar_t>(p_i, ad_scalar_t(R), ad_scalar_t(1e-12));
+        V2ad n_i = -grad_i;   
 
         ad_scalar_t Fx = lam_i * n_i.x();
         ad_scalar_t Fy = lam_i * n_i.y();
@@ -194,9 +194,12 @@ ad_function_t pushcircleContactConstraints = [](const ad_vector_t& x, ad_vector_
         ad_scalar_t cy_i    = x[idx + 3];
         ad_scalar_t lam_i   = x[idx + 4];
 
-        y.segment(i*1,1) << lam_i;          // λ ≥ 0  (handled as inequality)
-                            // g_i,            // g ≥ 0
-                            // -g_i*lam_i;     // -λ·g ≥ 0   ⇒ complementarity
+        V2ad p_i; p_i << cx_i, cy_i;
+        ad_scalar_t g_i = CRISP::sdf::sdfCircle<ad_scalar_t>(p_i, ad_scalar_t(R), ad_scalar_t(1e-12));
+
+        y.segment(i*1,1) << lam_i;            // λ ≥ 0  (handled as inequality)
+                            g_i,              // g ≥ 0
+                            -g_i*lam_i;       // -λ·g ≥ 0   ⇒ complementarity
     }
 };
 
@@ -220,14 +223,13 @@ ad_function_t pushcircleStayOnSurfaceConstraints = [](const ad_vector_t& x, ad_v
         ad_scalar_t cy_i    = x[idx + 3];
         ad_scalar_t lam_i   = x[idx + 4];
 
-        V2ad p_i; p_i << cx_i, cy_i;
-        const auto sdg = CRISP::sdf::sdgCircle<ad_scalar_t>(p_i, ad_scalar_t(R));
-        ad_scalar_t g_i = sdg.d;
-
         // std::vector<ad_scalar_t> xin(2), yout(1);
         // xin[0] = p_i.x(); xin[1] = p_i.y();
         // g_circle_sdf_cg(xin, yout);
         // ad_scalar_t g_i = yout[0];
+
+        V2ad p_i; p_i << cx_i, cy_i;
+        ad_scalar_t g_i = CRISP::sdf::sdfCircle<ad_scalar_t>(p_i, ad_scalar_t(R), ad_scalar_t(1e-12));
 
         y.segment(i*1,1) << g_i;                        // g = 0
     }
@@ -295,8 +297,8 @@ int main(){
     auto contact = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushcircleContactConstraints", pushcircleContactConstraints);
     auto initial = std::make_shared<ConstraintFunction>(variableNum, num_state, problemName, folderName, "pushcircleInitialConstraints", pushcircleInitialConstraints);
     auto stayOnSurface = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushcircleStayOnSurfaceConstraints", pushcircleStayOnSurfaceConstraints);
-
     // ---------------------- ! the above four lines are enough for generate the auto-differentiation functions library for this problem and the usage in python ! ---------------------- //
+
     pushcircleProblem.addObjective(obj);
     pushcircleProblem.addEqualityConstraint(dynamics);
     pushcircleProblem.addInequalityConstraint(contact);
@@ -309,8 +311,8 @@ int main(){
     vector_t xInitialGuess(variableNum);
     vector_t xOptimal(variableNum);
     
-    xInitialStates << 0.5, 0.2;
     // xInitialStates << 0.3, 0.3;
+    xInitialStates << 0.5, 0.2;
     // xInitialStates << -0.3, 0.5;
 
     // set zero initial guess
@@ -318,19 +320,19 @@ int main(){
     for (size_t k = 2; k < xInitialGuess.size(); k += (num_state+num_control))
     {
         xInitialGuess[k]   =  R+0.01;   // cx_i
-        xInitialGuess[k+1] =  0;   // cy_i
+        xInitialGuess[k+1] =  0;        // cy_i
     }
 
     SolverParameters params;
     SolverInterface solver(pushcircleProblem, params);
     solver.setProblemParameters("pushcircleInitialConstraints", xInitialStates);
-    // solver.setHyperParameters("maxIterations", vector_t::Constant(1, 15000));
+    solver.setHyperParameters("maxIterations", vector_t::Constant(1, 100000));
     // solver.setHyperParameters("trustRegionInitRadius", vector_t::Constant(1, 1.0));
     // solver.setHyperParameters("trustRegionMaxRadius", vector_t::Constant(1, 10.0));
     // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));
     // solver.setHyperParameters("etaHigh", vector_t::Constant(1, 0.75));
     // solver.setHyperParameters("mu", vector_t::Constant(1, 10.0));
-    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e30));
+    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e12));
     solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-5));
     solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
     solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-7));
