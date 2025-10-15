@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     T hx = 0.5, hy = 0.3, r = 0.1;
 
     // defaults for circle
-    T cx = 0.0, cy = 0.0, R = 0.3;
+    T R = 0.3;
 
     if (shape == "circle") {
         if (argc > 2) R  = std::atof(argv[2]);
@@ -72,35 +72,47 @@ int main(int argc, char** argv) {
         std::cerr << "ERROR: failed to open " << out_csv << " for writing.\n";
         return 1;
     }
+    
     csv << std::setprecision(17);
-    csv << "x,y,d,nx,ny\n";
+    csv << "x,y,d,nx,ny,hxx,hxy,hyx,hyy\n";
 
     // ----------------- Precompute params --------------
     const V2 half(hx, hy);
+    const T NaN = std::numeric_limits<T>::quiet_NaN();
 
     // ----------------- Sample SDF ---------------------
-    Sdf2D<T> sdg; // reuse this each loop
-
     for (int j = 0; j < H; ++j) {
         const T y = ymin + (ymax - ymin) * (T(j) / (H - 1));
         for (int i = 0; i < W; ++i) {
             const T x = xmin + (xmax - xmin) * (T(i) / (W - 1));
             const V2 p(x, y);
 
+            T d, nx, ny, hxx, hxy, hyx, hyy;
+
             if (shape == "roundedsmooth") {
-                sdg = CRISP::sdf::sdfBoxRoundedSmooth<T>(p, half, r);
+                auto sdg = CRISP::sdf::sdfBoxRoundedSmooth<T>(p, half, r);
+                d  = sdg.d; nx = sdg.n.x(); ny = sdg.n.y();
+                hxx = hxy = hyx = hyy = NaN; // no Hessian implemented here
             } else if (shape == "rounded") {
-                sdg = CRISP::sdf::sdfBoxRounded<T>(p, half, r);
+                auto sdg = CRISP::sdf::sdfBoxRounded<T>(p, half, r);
+                d  = sdg.d; nx = sdg.n.x(); ny = sdg.n.y();
+                hxx = hxy = hyx = hyy = NaN; // no Hessian implemented here
             } else if (shape == "round") {
-                sdg = CRISP::sdf::sdfBoxRound<T>(p, half, r);
+                auto sdg = CRISP::sdf::sdfBoxRound<T>(p, half, r);
+                d  = sdg.d; nx = sdg.n.x(); ny = sdg.n.y();
+                hxx = hxy = hyx = hyy = NaN; // no Hessian implemented here
             } else if (shape == "circle") {
-                sdg = CRISP::sdf::sdgCircle<T>(p, R);
+                auto sdg = CRISP::sdf::sdgCircleFull<T>(p, R);
+                d = sdg.d;
+                nx = sdg.grad.x();
+                ny = sdg.grad.y();
+                hxx = sdg.H(0,0); hxy = sdg.H(0,1); hyx = sdg.H(1,0); hyy = sdg.H(1,1);
             } else {
                 std::cerr << "ERROR: unknown shape '" << shape << "'\n";
                 return 1;
             }
 
-            csv << x << "," << y << "," << sdg.d << "," << sdg.n.x() << "," << sdg.n.y() << "\n";
+            csv << x << "," << y << "," << d << "," << nx << "," << ny << "," << hxx << "," << hxy << "," << hyx << "," << hyy << "\n";
         }
     }
 

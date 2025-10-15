@@ -83,8 +83,59 @@ ax2.set_aspect("equal")
 ax2.set_title(f"{CSV_FILENAME} — contours")
 fig2.tight_layout()
 fig2.savefig(OUT_CONTOUR_PNG, dpi=300)
-
 print(f"Saved: {OUT_CMAP_PNG}")
 print(f"Saved: {OUT_CONTOUR_PNG}")
+
+# ------------------- Figure 3: Hessian fields -------------------
+if all(k in data.dtype.names for k in ("hxx", "hxy", "hyx", "hyy")):
+    hxx = data["hxx"]; hxy = data["hxy"]; hyx = data["hyx"]; hyy = data["hyy"]
+
+    HXX = hxx.reshape(H, W)
+    HXY = hxy.reshape(H, W)
+    HYX = hyx.reshape(H, W)
+    HYY = hyy.reshape(H, W)
+    HXY = 0.5 * (HXY + HYX)        # symmetrize
+    LAP = HXX + HYY                # trace(H)
+
+    DIR_HESS = RESULTS_DIR / "hessian"
+    DIR_HESS.mkdir(parents=True, exist_ok=True)
+    OUT_HESS_PNG = DIR_HESS / f"{STEM}_hessian.png"
+
+    # --- plotting helper ---
+    def draw_panel(ax, Z, title):
+        finite_vals = Z[np.isfinite(Z)]
+        if finite_vals.size == 0:
+            zmax = 1.0
+        else:
+            lo, hi = np.percentile(finite_vals, [1, 99])  # robust clip
+            zmax = max(abs(lo), abs(hi))
+        normZ = TwoSlopeNorm(vmin=-zmax, vcenter=0.0, vmax=zmax)
+        im = ax.imshow(Z, extent=(xs.min(), xs.max(), ys.min(), ys.max()),origin="lower", cmap=COLORMAP, norm=normZ,interpolation="bilinear", aspect="equal")
+        ax.set_title(title, fontsize=11)
+        ax.set_xlim(-0.7, 0.7)
+        ax.set_ylim(-0.7, 0.7)
+        return im
+
+    # --- layout: tighter margins and larger center ---
+    fig3, axs = plt.subplots(2, 2, figsize=(8, 7))
+    plt.subplots_adjust(left=0.07, right=0.93, bottom=0.08, top=0.92, wspace=0.15, hspace=0.20)
+
+    ims = [
+        draw_panel(axs[0,0], HXX, r"$H_{xx}$"),
+        draw_panel(axs[0,1], HXY, r"$H_{xy}$ (sym)"),
+        draw_panel(axs[1,0], HYY, r"$H_{yy}$"),
+        draw_panel(axs[1,1], LAP,  r"trace$(H)=H_{xx}+H_{yy}$")
+    ]
+
+    # share one colorbar for all
+    cbar_ax = fig3.add_axes([0.93, 0.15, 0.02, 0.7])  # [left, bottom, width, height]
+    fig3.colorbar(ims[0], cax=cbar_ax, label="Hessian value")
+
+    fig3.suptitle(f"{CSV_FILENAME} — Hessian fields", fontsize=12)
+    fig3.savefig(OUT_HESS_PNG, dpi=300)
+    print(f"Saved: {OUT_HESS_PNG}")
+else:
+    print("Hessian columns not found in CSV; skipping Hessian figure.")
+
 
 plt.show()
