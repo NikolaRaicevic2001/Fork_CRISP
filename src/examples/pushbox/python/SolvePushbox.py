@@ -25,47 +25,29 @@ x0 = np.array([0.4, 0.0, 0.0], dtype=np.float64)   # Initial state [px, py, θ]
 xf = np.array([0.4, 0.3, 0.0], dtype=np.float64)   # Final state [px, py, θ]
 xee = np.array([0.0, -4*b], dtype=np.float64)   # End effector state [cx, cy]
 
+# -------------- Helper function to create or replace shared memory --------------
+def create_or_replace_shm(name, size):
+    try:
+        tmp = shared_memory.SharedMemory(name=name)
+        tmp.close(); tmp.unlink()
+    except FileNotFoundError:
+        pass
+    return shared_memory.SharedMemory(name=name, create=True, size=size)
+# ---------------------------------------------------------------------------------
+
 # Create the shared-memory block
-shm_name = "CRISP_publisher"
-try:
-    existing = shared_memory.SharedMemory(name=shm_name)
-    existing.close()
-    existing.unlink()
-except FileNotFoundError:
-    pass
-crispSol_shm = shared_memory.SharedMemory(name=shm_name, create=True, size=variableNum * np.dtype(np.float64).itemsize)
+crispSol_shm = create_or_replace_shm("CRISP_publisher", variableNum * np.dtype(np.float64).itemsize)
 crispSol_share = np.ndarray((variableNum,), dtype=np.float64, buffer=crispSol_shm.buf)
 
-shm_name = "CRISP_final_state"
-try:
-    existing = shared_memory.SharedMemory(name=shm_name)
-    existing.close()
-    existing.unlink()
-except FileNotFoundError:
-    pass
-crispFinalState_shm = shared_memory.SharedMemory(name=shm_name, create=True, size=num_state * np.dtype(np.float64).itemsize)
+crispFinalState_shm = create_or_replace_shm("CRISP_final_state", num_state * np.dtype(np.float64).itemsize)
 crispFinalState_share = np.ndarray((num_state,), dtype=np.float64, buffer=crispFinalState_shm.buf)
 crispFinalState_share[:] = xf
 
-shm_name = "CRISP_initial_state"
-try:
-    existing = shared_memory.SharedMemory(name=shm_name)
-    existing.close()
-    existing.unlink()
-except FileNotFoundError:
-    pass
-crispInitialState_shm = shared_memory.SharedMemory(name=shm_name, create=True, size=num_state * np.dtype(np.float64).itemsize)
+crispInitialState_shm = create_or_replace_shm("CRISP_initial_state", num_state * np.dtype(np.float64).itemsize)
 crispInitialState_share = np.ndarray((num_state,), dtype=np.float64, buffer=crispInitialState_shm.buf)
 crispInitialState_share[:] = x0
 
-shm_name = "CRISP_initial_state_ee"
-try:
-    existing = shared_memory.SharedMemory(name=shm_name)
-    existing.close()
-    existing.unlink()
-except FileNotFoundError:
-    pass
-crispInitialStateEE_shm = shared_memory.SharedMemory(name=shm_name, create=True, size=2 * np.dtype(np.float64).itemsize)
+crispInitialStateEE_shm = create_or_replace_shm("CRISP_initial_state_ee", 2 * np.dtype(np.float64).itemsize)
 crispInitialStateEE_share = np.ndarray((2,), dtype=np.float64, buffer=crispInitialStateEE_shm.buf)
 crispInitialStateEE_share[:] = xee
 
@@ -76,13 +58,15 @@ problem = pyCRISP.OptimizationProblem(variableNum, problemName)
 obj     = pyCRISP.ObjectiveFunction(variableNum, num_state, problemName, folderName, "pushboxObjective")
 dynamic = pyCRISP.ConstraintFunction(variableNum, problemName, folderName, "pushboxDynamicConstraints")
 contact = pyCRISP.ConstraintFunction(variableNum, problemName, folderName, "pushboxContactConstraints")
+contactSingleForce = pyCRISP.ConstraintFunction(variableNum, problemName, folderName, "pushboxContactSingleForceConstraints")
 initial = pyCRISP.ConstraintFunction(variableNum, num_state, problemName, folderName, "pushboxInitialConstraints")
-initial_ee = pyCRISP.ConstraintFunction(variableNum, 2, problemName, folderName, "pushboxInitialConstraintsEndEffector")
+# initial_ee = pyCRISP.ConstraintFunction(variableNum, 2, problemName, folderName, "pushboxInitialConstraintsEndEffector")
 problem.add_objective(obj)
 problem.add_equality_constraint(dynamic)
 problem.add_inequality_constraint(contact)
+problem.add_inequality_constraint(contactSingleForce)
 problem.add_equality_constraint(initial)
-problem.add_equality_constraint(initial_ee)
+# problem.add_equality_constraint(initial_ee)
 
 # Initialize the solver
 params = pyCRISP.SolverParameters()
@@ -92,7 +76,7 @@ print(f"[pyCRISP] Problem {problemName} created with {variableNum} variables and
 # Set the parameters for those parametric functions
 solver.set_problem_parameters("pushboxObjective", xf)               
 solver.set_problem_parameters("pushboxInitialConstraints", x0)
-solver.set_problem_parameters("pushboxInitialConstraintsEndEffector", xee)
+# solver.set_problem_parameters("pushboxInitialConstraintsEndEffector", xee)
 print(f"[pyCRISP] Problem parameters set with initial states {x0} and final states {xf} and end-effector states {xee}.")
 solver.set_hyper_parameters("maxIterations", np.array([1000]))              # maximum number of iterations for the outer loop
 # solver.set_hyper_parameters("trustRegionInitRadius", np.array([1.0]))       # initial trust region radius

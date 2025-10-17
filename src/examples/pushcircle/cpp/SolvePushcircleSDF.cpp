@@ -330,7 +330,7 @@ int main(){
     SolverParameters params;
     SolverInterface solver(pushcircleProblem, params);
     solver.setProblemParameters("pushcircleInitialConstraints", xInitialStates);
-    solver.setHyperParameters("maxIterations", vector_t::Constant(1, 100000));
+    solver.setHyperParameters("maxIterations", vector_t::Constant(1, 5));
     // solver.setHyperParameters("trustRegionInitRadius", vector_t::Constant(1, 1.0));
     // solver.setHyperParameters("trustRegionMaxRadius", vector_t::Constant(1, 10.0));
     // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));
