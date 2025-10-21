@@ -9,6 +9,10 @@
 #include "piqp/piqp.hpp" // qp solver
 #include <ctime>
 
+#include <fstream>
+#include <iomanip>
+#include <filesystem>
+
 namespace CRISP {
 class SolverInterface {
 public:
@@ -181,6 +185,14 @@ public:
 
 
     // print the result
+    void enableCsvDump(const std::filesystem::path& out_dir) {
+        dump_enabled_ = true;
+        dump_dir_ = out_dir;
+        std::filesystem::create_directories(dump_dir_);
+    }
+
+    // Dump every N accepted iterations (default 100). 0 disables periodic dumps.
+    void setDumpStride(std::size_t n) { dump_stride_ = n; }
 
     void solve() {
         // initialization
@@ -207,6 +219,9 @@ public:
         q_mu_0_ = evaluateQuadraticModel(obj_, objJac_, eqValues_, ineqValues_, objHessMat_, eqJacMat_, ineqJacMat_);
         time_qp = 0.0;
         time_total = 0.0;
+
+        dump_current_linearization_csv(/*iter_tag=*/0);
+
         // main loop, reuse data from the previous iteration to improve efficiency.
         auto startsolve = std::chrono::high_resolution_clock::now();
         for (currentIterate_ = 0; currentIterate_ < maxIterations_; ++currentIterate_) {
@@ -268,6 +283,11 @@ public:
                 eqJacCSR_.toEigenSparseMatrix(eqJacMat_);
                 ineqJacCSR_ = problem_.evaluateInequalityConstraintsJacobianCSR(xIterate_);
                 ineqJacCSR_.toEigenSparseMatrix(ineqJacMat_);
+
+            if (dump_enabled_ && dump_stride_ > 0 && ((currentIterate_ + 1) % dump_stride_ == 0)) {
+                dump_current_linearization_csv(/*iter_tag=*/ currentIterate_ + 1);
+            }
+
             }
             else {
                 // if the trial step is rejected, the trust region radius is shrinked but not update the iterate.
@@ -356,6 +376,60 @@ public:
     }
 
 private:
+    std::size_t dump_stride_ = 100;  // default: every 100 accepted steps
+
+    // ---- CSV dump helpers ----
+    static void write_dense_csv(const Eigen::MatrixXd& M, const std::filesystem::path& path) {
+        std::filesystem::create_directories(path.parent_path());
+        std::ofstream ofs(path);
+        ofs << std::setprecision(16) << std::scientific;
+        const auto rows = M.rows(), cols = M.cols();
+        for (Eigen::Index i = 0; i < rows; ++i) {
+            for (Eigen::Index j = 0; j < cols; ++j) {
+                ofs << M(i,j);
+                if (j + 1 < cols) ofs << ',';
+            }
+            ofs << '\n';
+        }
+    }
+    static void write_sparse_triplet_csv(const Eigen::SparseMatrix<double>& S, const std::filesystem::path& path) {
+        std::filesystem::create_directories(path.parent_path());
+        std::ofstream ofs(path);
+        ofs << std::setprecision(16) << std::scientific;
+        // header (optional)
+        // ofs << "#row,col,value\n";
+        for (int k = 0; k < S.outerSize(); ++k) {
+            for (Eigen::SparseMatrix<double>::InnerIterator it(S, k); it; ++it) {
+                ofs << it.row() << ',' << it.col() << ',' << it.value() << '\n';
+            }
+        }
+    }
+
+    // where to dump & whether to do it
+    bool dump_enabled_ = false;
+    std::filesystem::path dump_dir_;
+
+    void dump_current_linearization_csv(std::size_t iter_tag) {
+        if (!dump_enabled_) return;
+
+        // file names
+        auto grad_path   = dump_dir_ / ("iter_" + std::to_string(iter_tag) + "_obj_grad.csv");
+        auto hess_path   = dump_dir_ / ("iter_" + std::to_string(iter_tag) + "_obj_hess_triplets.csv");
+        auto ceqj_path   = dump_dir_ / ("iter_" + std::to_string(iter_tag) + "_eq_jac_triplets.csv");
+        auto cineqj_path = dump_dir_ / ("iter_" + std::to_string(iter_tag) + "_ineq_jac_triplets.csv");
+
+        // objJac_ is a column vector_t → convert to dense MatrixXd for a clean CSV
+        Eigen::MatrixXd grad_dense(objJac_.size(), 1);
+        for (int i = 0; i < objJac_.size(); ++i) grad_dense(i,0) = objJac_(i);
+        write_dense_csv(grad_dense, grad_path);
+
+        // these are already materialized as Eigen::SparseMatrix<double> in your code:
+        //   objHessMat_, eqJacMat_, ineqJacMat_
+        write_sparse_triplet_csv(objHessMat_,   hess_path);
+        write_sparse_triplet_csv(eqJacMat_,     ceqj_path);
+        write_sparse_triplet_csv(ineqJacMat_,   cineqj_path);
+    }
+
     // standard subproblem format for the QP solver.
     struct SubproblemData {
         vector_t g;

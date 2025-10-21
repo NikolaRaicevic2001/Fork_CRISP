@@ -159,16 +159,16 @@ ad_function_t pushcircleDynamicConstraints = [](const ad_vector_t& x, ad_vector_
         ad_scalar_t px_next = x[idx + (num_state + num_control) + 0];
         ad_scalar_t py_next = x[idx + (num_state + num_control) + 1];
 
-        // // n = grad(d) at p_i  (unit outward normal)
-        // std::vector<ad_scalar_t> xin(2), yout(2);
-        // xin[0] = p_i.x();  xin[1] = p_i.y();
-        // g_circle_grad_cg(xin, yout);
-        // V2ad n_i; n_i << -yout[0], -yout[1];   // inward normal for pushing
+        // n = grad(d) at p_i  (unit outward normal)
+        std::vector<ad_scalar_t> xin(2), yout(2);
+        xin[0] = cx_i; xin[1] = cy_i;
+        g_circle_grad_cg(xin, yout);
+        V2ad n_i; n_i << -yout[0], -yout[1];   // inward normal for pushing
 
-        // outward unit normal at the surface; pushing uses inward
-        V2ad p_i; p_i << cx_i, cy_i;
-        V2ad grad_i = CRISP::sdf::gradCircle<ad_scalar_t>(p_i, ad_scalar_t(R), ad_scalar_t(1e-12));
-        V2ad n_i = -grad_i;   
+        // // outward unit normal at the surface; pushing uses inward
+        // V2ad p_i; p_i << cx_i, cy_i;
+        // V2ad grad_i = CRISP::sdf::gradCircle<ad_scalar_t>(p_i, ad_scalar_t(R), ad_scalar_t(1e-12));
+        // V2ad n_i = -grad_i;   
 
         ad_scalar_t Fx = lam_i * n_i.x();
         ad_scalar_t Fy = lam_i * n_i.y();
@@ -198,8 +198,13 @@ ad_function_t pushcircleContactConstraints = [](const ad_vector_t& x, ad_vector_
         ad_scalar_t cy_i    = x[idx + 3];
         ad_scalar_t lam_i   = x[idx + 4];
 
-        V2ad p_i; p_i << cx_i, cy_i;
-        ad_scalar_t g_i = CRISP::sdf::sdfCircle<ad_scalar_t>(p_i, ad_scalar_t(R), ad_scalar_t(1e-12));
+        std::vector<ad_scalar_t> xin(2), yout(1);
+        xin[0] = cx_i; xin[1] = cy_i;
+        g_circle_sdf_cg(xin, yout);
+        ad_scalar_t g_i = yout[0];
+
+        // V2ad p_i; p_i << cx_i, cy_i;
+        // ad_scalar_t g_i = CRISP::sdf::sdfCircle<ad_scalar_t>(p_i, ad_scalar_t(R), ad_scalar_t(1e-12));
 
         y.segment(i*1,1) << lam_i;            // λ ≥ 0  (handled as inequality)
                             g_i,              // g ≥ 0
@@ -227,13 +232,13 @@ ad_function_t pushcircleStayOnSurfaceConstraints = [](const ad_vector_t& x, ad_v
         ad_scalar_t cy_i    = x[idx + 3];
         ad_scalar_t lam_i   = x[idx + 4];
 
-        // std::vector<ad_scalar_t> xin(2), yout(1);
-        // xin[0] = p_i.x(); xin[1] = p_i.y();
-        // g_circle_sdf_cg(xin, yout);
-        // ad_scalar_t g_i = yout[0];
+        std::vector<ad_scalar_t> xin(2), yout(1);
+        xin[0] = cx_i; xin[1] = cy_i;
+        g_circle_sdf_cg(xin, yout);
+        ad_scalar_t g_i = yout[0];
 
-        V2ad p_i; p_i << cx_i, cy_i;
-        ad_scalar_t g_i = CRISP::sdf::sdfCircle<ad_scalar_t>(p_i, ad_scalar_t(R), ad_scalar_t(1e-12));
+        // V2ad p_i; p_i << cx_i, cy_i;
+        // ad_scalar_t g_i = CRISP::sdf::sdfCircle<ad_scalar_t>(p_i, ad_scalar_t(R), ad_scalar_t(1e-12));
 
         y.segment(i*1,1) << g_i;                        // g = 0
     }
@@ -315,8 +320,8 @@ int main(){
     vector_t xInitialGuess(variableNum);
     vector_t xOptimal(variableNum);
     
-    // xInitialStates << 0.3, 0.3;
-    xInitialStates << 0.5, 0.2;
+    xInitialStates << 0.3, 0.3;
+    // xInitialStates << 0.5, 0.2;
     // xInitialStates << -0.3, 0.5;
 
     // set zero initial guess
@@ -330,7 +335,7 @@ int main(){
     SolverParameters params;
     SolverInterface solver(pushcircleProblem, params);
     solver.setProblemParameters("pushcircleInitialConstraints", xInitialStates);
-    solver.setHyperParameters("maxIterations", vector_t::Constant(1, 5));
+    solver.setHyperParameters("maxIterations", vector_t::Constant(1, 100000));
     // solver.setHyperParameters("trustRegionInitRadius", vector_t::Constant(1, 1.0));
     // solver.setHyperParameters("trustRegionMaxRadius", vector_t::Constant(1, 10.0));
     // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));
@@ -347,6 +352,10 @@ int main(){
     xFinalStates << 1.0, 1.0;
     solver.setProblemParameters("pushcircleObjective", xFinalStates);
     solver.initialize(xInitialGuess);
+    // solver.enableCsvDump(PROJECT_ROOT / "examples/pushcircle/results/linearizations");
+    solver.enableCsvDump(PROJECT_ROOT / "examples/pushcircle/results/linearizations_atomic");
+    solver.setDumpStride(5); 
+
     solver.solve();
     xOptimal = solver.getSolution();
 
