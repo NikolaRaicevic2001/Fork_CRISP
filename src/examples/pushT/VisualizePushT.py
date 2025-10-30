@@ -13,6 +13,8 @@ N  = 50                         # must match the solver's horizon
 num_state   = 19                # [px, py, theta, cx, cy, v1,w1, ..., v7,w7] = 19
 num_control = 10                # [lambda1..lambda8, c_theta, s_theta] = 10
 D = num_state + num_control
+# goal = np.array([0.036, -0.143, -2.637])  # desired final state
+goal = np.array([0.4, 0.3, 0])  # desired final state
 
 # Input / output paths
 csv_file = Path(__file__).resolve().parent / "results" / "results_pushT_original.csv"
@@ -110,9 +112,7 @@ def transform_body_polygon(x_body, y_body, px_k, py_k, theta_k):
     return R @ np.vstack([x_body, y_body]) + np.array([[px_k],[py_k]])
 
 # ---------------- GOAL ----------------
-goal_px, goal_py = 0.036, -0.143
-goal_theta = -2.637
-goal_world = transform_body_polygon(T_outline[0], T_outline[1], goal_px, goal_py, goal_theta)
+goal_world = transform_body_polygon(T_outline[0], T_outline[1], goal[0], goal[1], goal[2])
 
 # ---------------- STATIC PLOTS ----------------
 fig, ax = plt.subplots(3, 1, sharex=True, figsize=(7, 5))
@@ -120,7 +120,7 @@ fig, ax = plt.subplots(3, 1, sharex=True, figsize=(7, 5))
 ax[0].plot(t, px,    label="px  [m]")
 ax[0].plot(t, py,    label="py  [m]")
 ax[0].plot(t, theta_vis, label="θ   [rad]")
-ax[0].axhline(goal_px, color='r', ls='--', lw=1, alpha=0.5, label='goal px')
+ax[0].axhline(goal[0], color='r', ls='--', lw=1, alpha=0.5, label='goal px')
 ax[0].set_ylabel("states")
 ax[0].legend()
 
@@ -144,10 +144,10 @@ fig2, ax2 = plt.subplots(figsize=(7, 5))
 ax2.set_aspect("equal", adjustable="box")
 
 pad = 0.25
-xmin = min(px.min(), world_cx.min(), goal_px) - pad
-xmax = max(px.max(), world_cx.max(), goal_px) + pad
-ymin = min(py.min(), world_cy.min(), goal_py) - pad
-ymax = max(py.max(), world_cy.max(), goal_py) + pad
+xmin = min(px.min(), world_cx.min(), goal[0]) - pad
+xmax = max(px.max(), world_cx.max(), goal[0]) + pad
+ymin = min(py.min(), world_cy.min(), goal[1]) - pad
+ymax = max(py.max(), world_cy.max(), goal[1]) + pad
 ax2.set_xlim(xmin, xmax)
 ax2.set_ylim(ymin, ymax)
 

@@ -361,9 +361,11 @@ int main(){
     vector_t xFinalStates(4);
     vector_t xInitialGuess(variableNum);
     vector_t xOptimal(variableNum);
+
     // define a theta from 0 to 2pi, and define different final state for the problem with equal interval, for example 20 degree
-    // xInitialStates << 0, 0, 1, 0;
-    xInitialStates << 0.24722, 0.0141359, cos(-2.95844),sin(-2.95844);
+    xInitialStates << 0.4, 0, cos(0), sin(0);
+    // xInitialStates << 0.24722, 0.0141359, cos(-2.95844),sin(-2.95844);
+    
     // set random initial guess beteween -0.01 and 0.01
     xInitialGuess.setZero();
     // xInitialGuess.setRandom();
@@ -393,7 +395,8 @@ int main(){
     // solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-3));
     // // solver.setHyperParameters("verbose", vector_t::Constant(1, 1));
 
-    xFinalStates << 0.036, -0.143, cos(-2.637), sin(-2.637);
+    xFinalStates << 0.4, 0.3, cos(0), sin(0);
+    // xFinalStates << 0.036, -0.143, cos(-2.637), sin(-2.637);
     solver.setProblemParameters("pushTInitialConstraints", xInitialStates);
     solver.setProblemParameters("pushTObjective", xFinalStates);
     solver.initialize(xInitialGuess);
