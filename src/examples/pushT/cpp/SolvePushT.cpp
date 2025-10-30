@@ -17,6 +17,9 @@ const size_t N = 50; // number of time steps
 const size_t num_state = 19;
 const size_t num_control = 10;
 
+// Global variables for the problem
+static const std::filesystem::path PROJECT_ROOT = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();    
+
 // define the dynamics constraints
 ad_function_t pushTDynamicConstraints = [](const ad_vector_t& x, ad_vector_t& y) {
     y.resize((N - 1) * 12 + 9);
@@ -230,6 +233,7 @@ ad_function_with_param_t pushTObjective = [](const ad_vector_t& x, const ad_vect
     ad_scalar_t control_cost(0.0);
     for (size_t i = 0; i < N; ++i) {
         size_t idx = i * (num_state + num_control);
+        size_t idx_next = (i + 1) * (num_state + num_control);
         ad_scalar_t px_i = x[idx + 0];
         ad_scalar_t py_i = x[idx + 1];
         ad_scalar_t theta_i = x[idx + 2];
@@ -271,6 +275,10 @@ ad_function_with_param_t pushTObjective = [](const ad_vector_t& x, const ad_vect
         Q_final(1, 1) = 100;
         Q_final(2, 2) = 100;
         Q_final(3, 3) = 100;
+        ad_matrix_t M(2, 2);
+        M.setZero();
+        M(0, 0) = 1e-7;
+        M(1, 1) = 1e-7;
         ad_matrix_t R(num_control-2, num_control-2);
         R.setZero();
         R(0, 0) = 0.01;
@@ -282,6 +290,7 @@ ad_function_with_param_t pushTObjective = [](const ad_vector_t& x, const ad_vect
         R(6, 6) = 0.01;
         R(7, 7) = 0.01;
 
+        // Final state tracking cost
         if (i == N - 1) {
             ad_vector_t tracking_error(4);
 
@@ -293,6 +302,18 @@ ad_function_with_param_t pushTObjective = [](const ad_vector_t& x, const ad_vect
             tracking_cost += tracking_error.transpose() * Q_final * tracking_error;
         }
 
+        //Penalize the distance between consecutive contact points to encourage smoother control inputs
+        if (i < N - 1) {
+            ad_vector_t contact_distance(2);
+            ad_scalar_t cx_next, cy_next;
+            cx_next = x[idx_next + 3];
+            cy_next = x[idx_next + 4];
+            contact_distance << cx_i - cx_next,
+                                cy_i - cy_next;
+            control_cost += contact_distance.transpose() * M * contact_distance;
+        }
+
+        // Control effort and tracking cost
         if (i < N - 1) {
             ad_vector_t control_error(num_control-2);
             control_error << lambda1_i,
@@ -335,7 +356,6 @@ int main(){
     pushTProblem.addInequalityConstraint(contact);
     pushTProblem.addInequalityConstraint(contactSingleForce);
 
-
     // problem parameters
     vector_t xInitialStates(4);
     vector_t xFinalStates(4);
@@ -351,13 +371,28 @@ int main(){
     // xInitialGuess.setZero();
     SolverParameters params;
     SolverInterface solver(pushTProblem, params);
+
     // feel free to change the hyperparameters for the solver to obtain different performance
+    // solver.setHyperParameters("trustRegionInitRadius", vector_t::Constant(1, 1.0));
+    // solver.setHyperParameters("trustRegionMaxRadius", vector_t::Constant(1, 10.0));
+    // solver.setHyperParameters("etaLow", vector_t::Constant(1, 0.25));
+    // solver.setHyperParameters("etaHigh", vector_t::Constant(1, 0.75));
+    // solver.setHyperParameters("mu", vector_t::Constant(1, 10.0));
+    solver.setHyperParameters("muMax", vector_t::Constant(1, 1e10));
+    solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-5));
+    solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-5));
+    solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-7));
     solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
-    // solver.setHyperParameters("mu", vector_t::Constant(1, 1));
-    solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-3));
-    solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-3));
-    solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-3));
-    // solver.setHyperParameters("verbose", vector_t::Constant(1, 1));
+    solver.setHyperParameters("WeightedTolFactor", vector_t::Constant(1, 10.0));
+    // solver.setHyperParameters("secondOrderCorrection", vector_t::Constant(1, 1));
+
+    // solver.setHyperParameters("WeightedMode", vector_t::Constant(1, 1));
+    // // solver.setHyperParameters("mu", vector_t::Constant(1, 1));
+    // solver.setHyperParameters("trailTol", vector_t::Constant(1, 1e-3));
+    // solver.setHyperParameters("trustRegionTol", vector_t::Constant(1, 1e-3));
+    // solver.setHyperParameters("constraintTol", vector_t::Constant(1, 1e-3));
+    // // solver.setHyperParameters("verbose", vector_t::Constant(1, 1));
+
     xFinalStates << 0.036, -0.143, cos(-2.637), sin(-2.637);
     solver.setProblemParameters("pushTInitialConstraints", xInitialStates);
     solver.setProblemParameters("pushTObjective", xFinalStates);
@@ -365,4 +400,9 @@ int main(){
     solver.solve();
     xOptimal = solver.getSolution();
     std::cout << "Finish solving the problem with final state: " << xFinalStates.transpose() << std::endl;
+
+    std::ofstream log(PROJECT_ROOT / "examples/pushT/results/results_pushT_original.csv");
+    for (size_t k = 0; k < xOptimal.size(); ++k) log << xOptimal[k] << '\n';
+    log.close();     
+
     }
