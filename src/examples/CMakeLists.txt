@@ -41,7 +41,7 @@ target_link_libraries(waiter_example
   CRISP
 )
 
-add_executable(pushT_example pushT/SolvePushT.cpp)
+add_executable(pushT_example pushT/cpp/SolvePushT.cpp)
 target_link_libraries(pushT_example
   CRISP
 )

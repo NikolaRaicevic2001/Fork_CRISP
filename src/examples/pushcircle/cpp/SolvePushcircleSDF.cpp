@@ -203,12 +203,12 @@ ad_function_t pushcircleContactConstraints = [](const ad_vector_t& x, ad_vector_
         // g_circle_sdf_cg(xin, yout);
         // ad_scalar_t g_i = yout[0];
 
-        V2ad p_i; p_i << cx_i, cy_i;
-        ad_scalar_t g_i = CRISP::sdf::sdfCircle<ad_scalar_t>(p_i, ad_scalar_t(R), ad_scalar_t(1e-12));
+        // V2ad p_i; p_i << cx_i, cy_i;
+        // ad_scalar_t g_i = CRISP::sdf::sdfCircle<ad_scalar_t>(p_i, ad_scalar_t(R), ad_scalar_t(1e-12));
 
         y.segment(i*1,1) << lam_i;            // λ ≥ 0  (handled as inequality)
-                            g_i,              // g ≥ 0
-                            -g_i*lam_i;       // -λ·g ≥ 0   ⇒ complementarity
+                            // g_i,              // g ≥ 0
+                            // -g_i*lam_i;       // -λ·g ≥ 0   ⇒ complementarity
     }
 };
 
@@ -354,7 +354,7 @@ int main(){
     solver.initialize(xInitialGuess);
     // solver.enableCsvDump(PROJECT_ROOT / "examples/pushcircle/results/linearizations");
     solver.enableCsvDump(PROJECT_ROOT / "examples/pushcircle/results/linearizations");
-    solver.setDumpStride(5); 
+    solver.setDumpStride(100); 
 
     solver.solve();
     xOptimal = solver.getSolution();

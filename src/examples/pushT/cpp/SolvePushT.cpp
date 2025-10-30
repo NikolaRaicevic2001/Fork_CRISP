@@ -327,7 +327,6 @@ int main(){
     auto contact = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushTContactConstraints", pushTContactConstraints);
     auto initial = std::make_shared<ConstraintFunction>(variableNum, 4, problemName, folderName, "pushTInitialConstraints", pushTInitialConstraints);
     auto contactSingleForce = std::make_shared<ConstraintFunction>(variableNum, problemName, folderName, "pushTContactSingleForceConstraints", pushTContactSingleForceConstraints);
-
     // ---------------------- ! the above four lines are enough for generate the auto-differentiation functions library for this problem and the usage in python ! ---------------------- //
 
     pushTProblem.addObjective(obj);
