@@ -107,8 +107,8 @@ try:
         initial_state = crispInitialState_share
         final_state = crispFinalState_share
         x_initial_guess = solution
-        solver.set_problem_parameters("pushboxObjective", final_state)
-        solver.set_problem_parameters("pushboxInitialConstraints", initial_state)
+        solver.set_problem_parameters("pushTObjective", final_state)
+        solver.set_problem_parameters("pushTInitialConstraints", initial_state)
         solver.reset_problem(x_initial_guess)
         solver.solve()
         solution = solver.get_solution()
