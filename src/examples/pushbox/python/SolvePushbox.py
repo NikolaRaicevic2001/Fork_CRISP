@@ -21,9 +21,9 @@ variableNum = N * (num_state + num_control)
 
 # Set problem parameters
 x_initial_guess = np.zeros(variableNum, dtype=np.float64)  
-x0 = np.array([0.4, 0.0, 0.0], dtype=np.float64)   # Initial state [px, py, θ]
-xf = np.array([0.4, 0.3, 0.0], dtype=np.float64)   # Final state [px, py, θ]
-xee = np.array([0.0, -4*b], dtype=np.float64)   # End effector state [cx, cy]
+x0 = np.array([0.5, -0.3, 0.0], dtype=np.float64)       # Initial state [px, py, θ]
+xf = np.array([0.5, 0.3, 0.0], dtype=np.float64)        # Final state [px, py, θ]
+xee = np.array([0.0, -4*b], dtype=np.float64)           # End effector state [cx, cy]
 
 # -------------- Helper function to create or replace shared memory --------------
 def create_or_replace_shm(name, size):
@@ -108,7 +108,7 @@ try:
         x_initial_guess = solution
         solver.set_problem_parameters("pushboxObjective", final_state)
         solver.set_problem_parameters("pushboxInitialConstraints", initial_state)
-        solver.set_problem_parameters("pushboxInitialConstraintsEndEffector", initial_state_ee)
+        # solver.set_problem_parameters("pushboxInitialConstraintsEndEffector", initial_state_ee)
         solver.reset_problem(x_initial_guess)
         solver.solve()
         solution = solver.get_solution()

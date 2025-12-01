@@ -27,9 +27,9 @@ variableNum = N * (19 + num_control)
 
 # Set the problem parameters
 x_initial_guess = np.zeros(variableNum, dtype=np.float64)
-x0 = np.array([0.4, 0.0, np.cos(0),np.sin(0)], dtype=np.float64)    # Initial state [px, py, cos(θ), sin(θ)]
+x0 = np.array([0.5, 0.0, np.cos(0),np.sin(0)], dtype=np.float64)    # Initial state [px, py, cos(θ), sin(θ)]
 # x0 = np.array([0.24722, 0.0141359, np.cos(-2.95844),np.sin(-2.95844)], dtype=np.float64)    # Initial state [px, py, cos(θ), sin(θ)]
-xf = np.array([0.4, 0.3, np.cos(0), np.sin(0)], dtype=np.float64)             # Final state [px, py, cos(θ), sin(θ)]
+xf = np.array([0.5, 0.3, np.cos(0), np.sin(0)], dtype=np.float64)             # Final state [px, py, cos(θ), sin(θ)]
 # xf = np.array([0.036, 0.143, np.cos(-2.637), np.sin(-2.637)], dtype=np.float64)             # Final state [px, py, cos(θ), sin(θ)]
 
 # -------------- Helper function to create or replace shared memory --------------
